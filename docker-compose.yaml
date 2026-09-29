@@ -90,7 +90,14 @@ services:
       - prometheus
 
 volumes:
+  # Имена томов зафиксированы: стек переехал сюда из репозитория loadtest,
+  # где тома назывались loadtest_*. Явные name сохраняют историю метрик
+  # и логов при переезде — не переименовывай их без нужды.
   prometheus_data:
+    name: loadtest_prometheus_data
   alertmanager_data:
+    name: loadtest_alertmanager_data
   loki_data:
+    name: loadtest_loki-data
   grafana_data:
+    name: loadtest_grafana_data
