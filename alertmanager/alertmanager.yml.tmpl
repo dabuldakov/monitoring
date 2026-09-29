@@ -25,9 +25,15 @@ receivers:
         send_resolved: true
         headers:
           # Тема: сначала что случилось, потом ЧЕЙ это сервер.
-          # server — отображаемое имя из .env (APPS_SERVER_NAME и т.д.);
-          # fallback на instance нужен на случай алерта без этого лейбла.
+          # server — отображаемое имя из .env (APPS_SERVER_NAME и т.д.).
+          #
+          # ВАЖНО: в шаблонах Alertmanager доступен НЕ sprig, а небольшой
+          # свой набор функций. `default` из sprig здесь не существует, и
+          # ошибка «function default not defined» всплывает только в момент
+          # отправки письма, а не при загрузке конфига. Поэтому fallback
+          # сделан на встроенном if/else. Если правишь этот блок —
+          # проверяй отправку тестового алерта (см. DEPLOY.md).
           Subject: >-
             [{{ if eq .Status "firing" }}{{ .CommonLabels.severity | toUpper }}{{ else }}РЕШЕНО{{ end }}]
-            {{ .CommonLabels.server | default .CommonLabels.instance }}:
+            {{ if .CommonLabels.server }}{{ .CommonLabels.server }}{{ else }}{{ .CommonLabels.instance }}{{ end }}:
             {{ if eq .Status "firing" }}{{ .CommonLabels.alertname }}{{ else }}восстановлен {{ .CommonLabels.alertname }}{{ end }}
