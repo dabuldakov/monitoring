@@ -17,11 +17,13 @@
                node_exporter     метрики самого себя (127.0.0.1:9101)
                apps-tunnel       SSH-туннели к 168.222.194.206
                akm-tunnel        SSH-туннель к 90.188.89.63
+               k6-rw-tunnel      обратный SSH-туннель: k6-метрики в Prometheus
 
 168.222.194.206                  chat, makeup + promtail + node_exporter
 
 90.188.89.63                    gitlab и прочее + node_exporter (без promtail —
                                 Loki туда не доставить, логи не нужны)
+                                + генератор нагрузки k6 (репозиторий loadtest)
 ```
 
 Promtail нужен на двух хостах: на `168.222.194.206` (chat, makeup) и на самом
@@ -133,11 +135,26 @@ cp /opt/loadtest/.env .env       # переносим SMTP-реквизиты и
 ```bash
 cp server/tunnels/apps.service /etc/systemd/system/apps-tunnel.service
 cp server/tunnels/akm.service  /etc/systemd/system/akm-tunnel.service
+cp server/tunnels/k6-rw.service /etc/systemd/system/k6-rw-tunnel.service
 systemctl daemon-reload
-systemctl enable --now apps-tunnel akm-tunnel
+systemctl enable --now apps-tunnel akm-tunnel k6-rw-tunnel
 
 # старый юнит дублирует akm-tunnel — выключаем
 systemctl disable --now node-exporter-tunnel
+```
+
+`k6-rw-tunnel` нужен только если нагрузка генерируется на `90.188.89.63`.
+Это обратный туннель: на akm появляется `127.0.0.1:9090`, идущий в Prometheus,
+поэтому генератор шлёт метрики по дефолтному `K6_PROMETHEUS_RW_SERVER_URL`
+и настраивать ничего не нужно. Проверка:
+
+```bash
+# на машине мониторинга
+systemctl is-active k6-rw-tunnel
+
+# с akm: порт слушает и отвечает (400 — пустое тело, ожидаемо)
+ssh -p 2222 dmitry_buldakov@90.188.89.63 \
+  'ss -tln | grep 9090; curl -s -o /dev/null -w "%{http_code}\n" -XPOST http://127.0.0.1:9090/api/v1/write'
 ```
 
 ## Шаг 5. Запуск стека
