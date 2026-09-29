@@ -136,8 +136,9 @@ cp /opt/loadtest/.env .env       # переносим SMTP-реквизиты и
 cp server/tunnels/apps.service /etc/systemd/system/apps-tunnel.service
 cp server/tunnels/akm.service  /etc/systemd/system/akm-tunnel.service
 cp server/tunnels/k6-rw.service /etc/systemd/system/k6-rw-tunnel.service
+cp server/tunnels/k6-wcm.service /etc/systemd/system/k6-wcm-tunnel.service
 systemctl daemon-reload
-systemctl enable --now apps-tunnel akm-tunnel k6-rw-tunnel
+systemctl enable --now apps-tunnel akm-tunnel k6-rw-tunnel k6-wcm-tunnel
 
 # старый юнит дублирует akm-tunnel — выключаем
 systemctl disable --now node-exporter-tunnel
@@ -156,6 +157,19 @@ systemctl is-active k6-rw-tunnel
 ssh -p 2222 dmitry_buldakov@90.188.89.63 \
   'ss -tln | grep 9090; curl -s -o /dev/null -w "%{http_code}\n" -XPOST http://127.0.0.1:9090/api/v1/write'
 ```
+
+`k6-wcm-tunnel` — то же для бэкенда wcm, который закрыт снаружи. Нужен
+нагрузочным тестам: без него сценарий wcm на akm не достучится до API.
+Заголовок `X-WCM-Client` обязателен, иначе `FrontendAccessFilter` даёт 403.
+
+```bash
+ssh -p 2222 dmitry_buldakov@90.188.89.63 \
+  'curl -s -o /dev/null -w "%{http_code}\n" -H "X-WCM-Client: wcm-frontend" \
+     http://127.0.0.1:8087/api/wcm/v0/country/all'   # ожидается 200
+```
+
+Health-check wcm в Prometheus идёт на `127.0.0.1:8087` (`WCM_PROBE_HOST`),
+а не на публичный IP: снаружи порта уже нет.
 
 ## Шаг 5. Запуск стека
 

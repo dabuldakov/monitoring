@@ -81,7 +81,7 @@ scrape_configs:
           server: ${APPS_SERVER_NAME}
           app: chat
       - targets:
-          - "${WCM_HOST}:${WCM_PORT}"       # world-country-monitoring
+          - "${WCM_PROBE_HOST}:${WCM_PORT}" # world-country-monitoring, loopback (порт закрыт снаружи)
         labels:
           server: ${WCM_SERVER_NAME}
           app: wcm
@@ -111,7 +111,7 @@ scrape_configs:
           server: ${APPS_SERVER_NAME}
           app: chat
       - targets:
-          - "http://${WCM_HOST}:${WCM_PORT}/actuator/health"       # world-country-monitoring
+          - "http://${WCM_PROBE_HOST}:${WCM_PORT}/actuator/health"  # world-country-monitoring, loopback
         labels:
           server: ${WCM_SERVER_NAME}
           app: wcm

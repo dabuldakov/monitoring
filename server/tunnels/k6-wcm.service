@@ -1,0 +1,34 @@
+# Обратный SSH-туннель для доступа к бэкенду wcm с akm-сервера.
+#
+# Зачем: бэкенд world-country-monitoring публиковался как "8087:8080", то есть
+# слушал 0.0.0.0 и был виден из интернета. Снаружи на него лезут сканеры
+# (в логах nginx видны GET /.git/HEAD и GET /wp-admin/install.php), а
+# ufw такие порты не фильтрует: Docker вставляет published-порт в
+# DOCKER-USER и FORWARD раньше, чем пакет дойдёт до INPUT.
+#
+# Решение — закрыть порт снаружи (127.0.0.1:8087 в compose бэкенда) и
+# доставлять генератору доступ по SSH-туннелю. Туннель обратный (-R):
+# на akm появляется 127.0.0.1:8087, идущий в наш бэкенд. Порт слушает
+# только loopback akm-сервера, наружу не торчит, аутентификация — SSH.
+#
+# Побочная выгода: WCM_BASE_URL в репозитории loadtest становится
+# http://127.0.0.1:8087 — тот же адрес, что и K6_PROMETHEUS_RW_SERVER_URL,
+# всё единообразно и ничего не надо перенастраивать на разных хостах.
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/tunnels/k6-wcm.service /etc/systemd/system/k6-wcm-tunnel.service
+#   systemctl daemon-reload
+#   systemctl enable --now k6-wcm-tunnel
+[Unit]
+Description=Обратный SSH-туннель akm-server 127.0.0.1:8087 -> бэкенд wcm (нагрузочные тесты)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -R 127.0.0.1:8087:127.0.0.1:8087 -p 2222 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new dmitry_buldakov@90.188.89.63
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
