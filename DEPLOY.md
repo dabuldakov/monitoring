@@ -104,11 +104,24 @@ cp /opt/loadtest/.env .env       # переносим SMTP-реквизиты и
 + APPS_HOST=168.222.194.206
 + WCM_HOST=89.104.66.226
 + AKM_HOST=90.188.89.63
++ APPS_SERVER_NAME="Muzea"
++ WCM_SERVER_NAME="WCM Loadtest Monitoring"
++ AKM_SERVER_NAME="AKM Gitlab"
 + MAKEUP_PORT=8085
 + CHAT_PORT=8086
 + WCM_PORT=8087
 + GRAFANA_BIND_ADDR=0.0.0.0     # Grafana должен быть доступен снаружи
 ```
+
+`*_SERVER_NAME` — отображаемые имена, они попадают в `instance` для `job=node`
+и в лейбл `server` у blackbox-задач. По ним подписаны панели дашбордов и тема
+письма об аварии, поэтому в письме видно, чей сервер упал, а не IP.
+
+**Кавычки обязательны**, если в имени есть пробелы: `render.sh` делает
+`source .env`, и без кавычек `WCM_SERVER_NAME=WCM Loadtest Monitoring`
+превратится в попытку выполнить команду `Loadtest`, а переменная станет `WCM`.
+`render.sh` печатает итоговые значения и падает на пустой переменной, но
+обрезанное имя он не поймает — поэтому печатает.
 
 `GRAFANA_BIND_ADDR` заменил `docker-compose.override.yaml`, который на старом
 хосте переопределял compose. Override больше не нужен.
@@ -160,6 +173,25 @@ curl -s 'http://127.0.0.1:3100/loki/api/v1/labels' | grep -o '"app"'
 
 В Grafana: `Availability / Backend Availability` — все три бэкенда UP,
 `Logs / Backend Logs` — логи chat, makeup и wcm.
+
+### Проверка писем об авариях
+
+Ошибка в шаблоне письма не видна ни при загрузке конфига, ни в
+`promtool`/`amtool check-config` — она возникает в момент отправки. То есть
+о нерабочей теме можно узнать только тогда, когда что-то уже упало. Поэтому
+после правки `alertmanager/alertmanager.yml.tmpl`:
+
+```bash
+./server/test-notification.sh "Muzea"
+```
+
+Скрипт отправляет синтетический алерт, убеждается, что Alertmanager его
+принял, и проверяет логи на ошибку шаблона или SMTP. Тема должна прийти
+письмом вида `[CRITICAL] Muzea: TestNotification`.
+
+В шаблонах Alertmanager доступен небольшой свой набор функций, а **не
+sprig**: `default`, `trim`, `replace` и прочие sprig-хелперы там не
+существуют и дают `function "..." not defined` в момент отправки.
 
 ## Шаг 7. Убрать старое
 
