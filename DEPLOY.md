@@ -13,6 +13,7 @@
 
 ```
 89.104.66.226  /opt/monitoring   Prometheus, Alertmanager, blackbox, Grafana, Loki
+               /opt/promtail     promtail: wcm живёт на этом же хосте
                node_exporter     метрики самого себя (127.0.0.1:9101)
                apps-tunnel       SSH-туннели к 168.222.194.206
                akm-tunnel        SSH-туннель к 90.188.89.63
@@ -20,8 +21,12 @@
 168.222.194.206                  chat, makeup + promtail + node_exporter
 
 90.188.89.63                    gitlab и прочее + node_exporter (без promtail —
-                                Loki там нет, логи уходили в никуда)
+                                Loki туда не доставить, логи не нужны)
 ```
+
+Promtail нужен на двух хостах: на `168.222.194.206` (chat, makeup) и на самом
+хосте мониторинга (wcm). На машине мониторинга Loki доступен напрямую, без
+туннеля, поэтому `install-promtail.sh` там отработает с первого раза.
 
 ## Шаг 1. Доступ по ключу с машины мониторинга на сервер приложений
 
@@ -53,6 +58,34 @@ ssh root@168.222.194.206
 `install-promtail.sh` предупредит, если Loki на `127.0.0.1:3100` недоступен —
 на этом шаге так и будет, туннели ещё не подняты. Это нормально, вернись сюда
 после шага 3.
+
+На самой машине мониторинга promtail тоже нужен — там живёт wcm:
+
+```bash
+cd /opt/monitoring
+PROMTAIL_DIR=/opt/promtail ./server/install-promtail.sh
+```
+
+Loki тут локальный, скрипт отработает сразу. Контейнеры самого стека
+мониторинга в сбор логов не попадают: в `promtail/promtail.yml` для этого есть
+`monitoring-*` в drop-регексе, иначе promtail на хосте мониторинга собирал бы
+логи самого себя.
+
+Если скрипт запускается на хосте, где у контейнеров уже накопился большой буфер
+логов (например, при переезде promtail на существующий хост), Loki отклонит
+старые записи как `400 entry too far behind`, и весь батч не пройдёт. Лечится
+посевом positions на «сейчас», чтобы promtail не переигрывал старый буфер:
+
+```bash
+docker stop promtail
+NOW=$(date +%s)
+{ echo positions:; docker ps -q --no-trunc | while read id; do
+    echo "  cursor-$id: \"$NOW\""; done; } > /opt/promtail/positions/positions.yaml
+docker start promtail
+```
+
+Идентификаторы нужны полные: `docker ps -q` без `--no-trunc` даёт 12 символов,
+а promtail ключует курсоры по полным 64, и посев не подействует.
 
 ## Шаг 3. Новый каталог на машине мониторинга
 
@@ -137,11 +170,30 @@ git -C /opt/loadtest remote -v                # убедись, что всё в
 rm -rf /opt/loadtest
 ```
 
-Промтейл на `90.188.89.63` можно остановить — Loki там нет:
+Промтейл на `90.188.89.63` можно удалить — Loki туда не доставить, а логи
+gitlab всё равно не нужны. `node_exporter` оставь, его туннель использует
+Prometheus:
 
 ```bash
-ssh -p 2222 dmitry_buldakov@90.188.89.63 docker stop promtail
+ssh -p 2222 dmitry_buldakov@90.188.89.63 docker rm -f promtail
+ssh -p 2222 dmitry_buldakov@90.188.89.63 sudo rm -rf ~/logging
 ```
+
+Каталог `~/logging` принадлежит root (файлы positions пишет promtail от root),
+поэтому `sudo` требует пароля — если его нет, каталог можно оставить, он
+безвреден.
+
+Перед `rm -rf /opt/loadtest` проверь, что в `/opt/loadtest` не осталось
+bind-mount'ов у живых контейнеров, иначе они продолжат работать на удалённых
+inode и упадут при первом же рестарте:
+
+```bash
+docker ps -q | xargs -r docker inspect --format '{{.Name}} {{range .Mounts}}{{.Source}} {{end}}' \
+  | grep /opt/loadtest
+```
+
+Если что-то осталось — сначала пересоздай контейнер с путями в
+`/opt/monitoring` (например, `PROMTAIL_DIR=/opt/promtail ./server/install-promtail.sh`).
 
 ## Откат
 
