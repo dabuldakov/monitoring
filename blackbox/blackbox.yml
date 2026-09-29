@@ -1,0 +1,19 @@
+modules:
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: ip4
+      payload_size: 64
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+  # Проверка HTTP-эндпоинта /actuator/health: 200 = приложение живо.
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200]
+      method: GET
+      preferred_ip_protocol: ip4

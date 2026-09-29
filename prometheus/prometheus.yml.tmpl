@@ -1,0 +1,93 @@
+# ШАБЛОН. Реальный конфиг рендерится из .env командой `./run.sh render`
+# в prometheus/prometheus.local.yml. Правь этот файл, а не .local.
+#
+# Подставляемые переменные берутся из .env (см. .env.example):
+#   APPS_HOST / WCM_HOST / AKM_HOST        — хосты
+#   MAKEUP_PORT / CHAT_PORT / WCM_PORT     — порты приложений
+#   *_NODE_EXPORTER_PORT                    — локальные порты туннелей до node_exporter
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["127.0.0.1:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9090"]
+
+  # node_exporter целевых серверов: там он слушает только 127.0.0.1:9100,
+  # наружу отдаётся через SSH-туннели с этой машины (server/tunnels/*.service).
+  - job_name: node
+    static_configs:
+      - targets: ["127.0.0.1:${AKM_NODE_EXPORTER_PORT}"]
+        labels:
+          instance: akm-server
+      - targets: ["127.0.0.1:${APPS_NODE_EXPORTER_PORT}"]
+        labels:
+          instance: apps-server
+      - targets: ["127.0.0.1:${WCM_NODE_EXPORTER_PORT}"]
+        labels:
+          instance: countrymonitoring
+
+  # RTT/потери до целевых серверов через blackbox_exporter (127.0.0.1:9115).
+  - job_name: blackbox-icmp
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets: ["${APPS_HOST}", "${WCM_HOST}", "${AKM_HOST}"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+
+  - job_name: blackbox-tcp
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+          - "${APPS_HOST}:${MAKEUP_PORT}"   # makeup
+          - "${APPS_HOST}:${CHAT_PORT}"     # chat
+          - "${WCM_HOST}:${WCM_PORT}"       # world-country-monitoring
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+
+  # Живость приложений через Actuator: HTTP 200 на /actuator/health.
+  # Даёт probe_success=1/0 и probe_duration_seconds по каждому бэкенду.
+  - job_name: blackbox-http-health
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - "http://${APPS_HOST}:${MAKEUP_PORT}/actuator/health"   # makeup
+          - "http://${APPS_HOST}:${CHAT_PORT}/actuator/health"     # chat
+          - "http://${WCM_HOST}:${WCM_PORT}/actuator/health"       # world-country-monitoring
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+
+  # Метрики нагрузочных прогонов: k6 из репозитория loadtest пишет их
+  # в этот Prometheus через remote-write (K6_PROMETHEUS_RW_SERVER_URL).
+  # В Grafana фильтруй по лейблу testid.

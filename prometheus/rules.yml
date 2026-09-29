@@ -1,0 +1,42 @@
+groups:
+  - name: backend-availability
+    rules:
+      # Приложение не отвечает на /actuator/health (или БД недоступна -> 503)
+      - alert: BackendHealthDown
+        expr: probe_success{job="blackbox-http-health"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Бэкенд недоступен: {{ $labels.instance }}"
+          description: "Health-check {{ $labels.instance }} не проходит больше 1 минуты (нет HTTP 200 на /actuator/health)."
+
+      # Порт приложения не принимает соединения
+      - alert: BackendPortDown
+        expr: probe_success{job="blackbox-tcp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Порт бэкенда не отвечает: {{ $labels.instance }}"
+          description: "TCP-соединение к {{ $labels.instance }} не устанавливается больше 1 минуты."
+
+      # Хост сервера не пингуется
+      - alert: ServerHostDown
+        expr: probe_success{job="blackbox-icmp"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сервер не пингуется: {{ $labels.instance }}"
+          description: "ICMP-пинг {{ $labels.instance }} не проходит больше 2 минут."
+
+      # Высокий RTT до сервера (не критично, но полезно)
+      - alert: ServerHighLatency
+        expr: probe_duration_seconds{job="blackbox-icmp"} > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая задержка до сервера: {{ $labels.instance }}"
+          description: "RTT {{ $labels.instance }} > 200ms более 5 минут (сейчас {{ $value | humanizeDuration }})."

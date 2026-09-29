@@ -1,0 +1,57 @@
+# Promtail — сбор docker-логов на сервере приложений и доставка в Loki.
+#
+# Один и тот же конфиг ставится на все серверы приложений (./server/install-promtail.sh).
+# На каждом таком сервере Loki доступен на 127.0.0.1:3100 через обратный SSH-туннель
+# с машины мониторинга (server/tunnels/apps.service), поэтому адрес push одинаковый
+# везде и не зависит от IP.
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /promtail/positions.yaml
+
+clients:
+  - url: http://127.0.0.1:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+    relabel_configs:
+      # label 'container' = имя docker-контейнера (chat-backend-app-1, ...)
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+      # Не тащим агентов и служебные контейнеры (шума нет пользы)
+      - source_labels: ['container']
+        regex: '(promtail|loki|node_exporter|blackbox|loadtest-.*|gitlab.*)'
+        action: drop
+      # label 'app' для запросов {app="chat"} / {app="makeup"} / {app="wcm"}
+      - source_labels: ['container']
+        regex: '(chat|makeup).*'
+        target_label: app
+      - source_labels: ['container']
+        regex: 'world-country-monitoring.*'
+        target_label: app
+        replacement: 'wcm'
+    pipeline_stages:
+      # JSON-логи приложений (chat/makeup): уровень в отдельный label.
+      - match:
+          selector: '{app=~"chat|makeup"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+            - labels:
+                level:
+      # world-country-monitoring пишет текстовый Spring Boot лог:
+      # уровень достаём регуляркой из начала строки.
+      - match:
+          selector: '{app="wcm"}'
+          stages:
+            - regex:
+                expression: '^(?P<ts>\S+)\s+(?P<level>TRACE|DEBUG|INFO|WARN|ERROR|FATAL)\b'
+            - labels:
+                level:

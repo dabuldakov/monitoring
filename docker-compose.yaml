@@ -1,0 +1,96 @@
+name: monitoring
+
+# Постоянный стек наблюдаемости: метрики + логи + алерты + Grafana.
+# Живёт на отдельной машине и НЕ зависит от нагрузочных прогонов (репозиторий loadtest).
+# Наружу торчит только Grafana (адрес и порт задаются в .env).
+#
+# Все IP/порты берутся из .env: конфиг Prometheus рендерится из шаблона
+# prometheus/prometheus.yml.tmpl командой ./run.sh render (см. run.sh).
+#
+# node_exporter на целевых серверах слушает только 127.0.0.1:9100 и пробрасывается
+# SSH-туннелями с этой машины на локальные порты из .env:
+#   ${AKM_NODE_EXPORTER_PORT}  -> akm-сервер        (server/tunnels/akm.service)
+#   ${APPS_NODE_EXPORTER_PORT} -> сервер приложений  (server/tunnels/apps.service)
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+      - --web.enable-remote-write-receiver
+      - --enable-feature=native-histograms
+      - --web.listen-address=127.0.0.1:9090
+    volumes:
+      - ./prometheus/prometheus.local.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus_data:/prometheus
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --web.listen-address=127.0.0.1:9093
+      - --storage.path=/alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    depends_on:
+      - prometheus
+
+  # RTT и потери до целевых серверов (ICMP + TCP), плюс живость приложений
+  # по /actuator/health. Слушает только localhost.
+  blackbox:
+    image: prom/blackbox-exporter:latest
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+      - --web.listen-address=127.0.0.1:9115
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    depends_on:
+      - prometheus
+
+  # Хранилище логов всех docker-контейнеров (agent'ы promtail стоят на серверах
+  # приложений и шлют сюда). Наружу не торчит: Grafana читает локально.
+  loki:
+    image: grafana/loki:3.4.2
+    restart: unless-stopped
+    network_mode: host
+    user: "0"
+    mem_limit: 512m
+    command: -config.file=/etc/loki/loki.yaml
+    volumes:
+      - ./loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_ANONYMOUS_ENABLED:-false}
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SERVER_HTTP_ADDR: ${GRAFANA_BIND_ADDR:-127.0.0.1}
+      GF_SERVER_HTTP_PORT: "${GRAFANA_PORT:-3000}"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  loki_data:
+  grafana_data:

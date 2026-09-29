@@ -1,0 +1,23 @@
+# SSH-туннель к node_exporter на akm-сервере (gitlab, инфраструктура).
+#
+# node_exporter там слушает только 127.0.0.1:9100 (server/install-node-exporter.sh),
+# наружу не торчит. Prometheus скрейпит пробрасываемый порт как 127.0.0.1:9100
+# (job node, instance=akm-server в prometheus/prometheus.yml.tmpl).
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/tunnels/akm.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now akm-tunnel
+[Unit]
+Description=SSH-туннель к node_exporter на akm-сервере: 127.0.0.1:9100
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9100:127.0.0.1:9100 -p 2222 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new dmitry_buldakov@90.188.89.63
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,33 @@
+# SSH-туннели к серверу приложений (chat + makeup).
+#
+# Ставится на машине мониторинга. Два канала в одном SSH-соединении:
+#   -L 127.0.0.1:9102 -> 127.0.0.1:9100   метрики node_exporter сервера приложений
+#                                      (там он слушает только loopback)
+#   -R 127.0.0.1:3100 -> 127.0.0.1:3100   обратный прокси к Loki: promtail на
+#                                      сервере приложений шлёт логи в 127.0.0.1:3100
+#
+# Требуется: публичный ключ машины мониторинга в authorized_keys сервера приложений
+#   ssh-keygen -y -f /root/.ssh/id_ed25519   # добавить результат на сервер приложений
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/tunnels/apps.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now apps-tunnel
+#
+# Проверка:
+#   systemctl status apps-tunnel
+#   ss -ltnp | grep 9102
+#   ssh <apps-host> 'curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3100/ready'  # 200
+[Unit]
+Description=SSH-туннели к серверу приложений: node_exporter 127.0.0.1:9102 и обратный Loki 127.0.0.1:3100
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9102:127.0.0.1:9100 -R 127.0.0.1:3100:127.0.0.1:3100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@168.222.194.206
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

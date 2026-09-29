@@ -1,0 +1,46 @@
+# Loki — single-binary, filesystem store. Деплой на целевом сервере (90.188.89.63)
+# через ./server/install-logging.sh. Слушает 127.0.0.1:3100 (наружу не торчит).
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 0
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 336h      # 14 дней
+  max_query_lookback: 336h
+  max_entries_limit_per_query: 10000
+  ingestion_burst_size_mb: 32
+  ingestion_rate_mb: 16
+
+compactor:
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
+  compactor_ring:
+    kvstore:
+      store: inmemory
+  retention_enabled: true
+
+query_scheduler:
+  max_outstanding_requests_per_tenant: 2048
