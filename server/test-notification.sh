@@ -38,9 +38,21 @@ curl -s -XPOST "$AM/api/v2/alerts" -H 'Content-Type: application/json' -d "[{
 # Ждём group_wait/цикл отправки.
 sleep 20
 
+# Позитивная проверка: алерт должен появиться в API Alertmanager.
+# Без неё скрипт «проходил» бы и тогда, когда уведомление вообще не
+# пыталось отправить (Alertmanager не логирует успешные отправки, а
+# grep по ошибкам молчит в таком случае).
+echo "==> проверяю, что алерт принят Alertmanager"
+if ! curl -s "$AM/api/v2/alerts" | grep -q TestNotification; then
+  echo "!! Alertmanager не принял тестовый алерт — проверь, что он запущен:" >&2
+  echo "   docker compose ps alertmanager" >&2
+  exit 1
+fi
+echo "    алерт в Alertmanager, шаблон отработал"
+
 echo "==> проверяю логи Alertmanager на ошибки шаблона/SMTP"
-if docker compose logs --since 1m alertmanager 2>&1 \
-     | grep -iE 'notify.*fail|function .* not defined|template:'; then
+if docker compose logs --since 2m alertmanager 2>&1 \
+     | grep -iE 'notify.*fail|function .* not defined|template:|smtp.*error'; then
   echo
   echo "!! уведомления НЕ отправились — см. ошибку выше." >&2
   echo "!! Проверь шаблон Subject в alertmanager/alertmanager.yml.tmpl." >&2
