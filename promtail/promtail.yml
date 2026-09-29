@@ -27,9 +27,11 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: container
-      # Не тащим агентов и служебные контейнеры (шума нет пользы)
+      # Не тащим агентов и служебные контейнеры (шума нет пользы).
+      # monitoring-* — сам стек мониторинга: promtail запускается и на машине
+      # мониторинга, где без этого фильтра он собирал бы логи самого себя.
       - source_labels: ['container']
-        regex: '(promtail|loki|node_exporter|blackbox|loadtest-.*|gitlab.*)'
+        regex: '(promtail|loki|node_exporter|blackbox|loadtest-.*|monitoring-.*|gitlab.*)'
         action: drop
       # label 'app' для запросов {app="chat"} / {app="makeup"} / {app="wcm"}
       - source_labels: ['container']
