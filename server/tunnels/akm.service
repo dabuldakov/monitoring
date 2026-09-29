@@ -5,7 +5,7 @@
 # (job node, instance=akm-server в prometheus/prometheus.yml.tmpl).
 #
 # Установка (на машине мониторинга, от root):
-#   cp server/tunnels/akm.service /etc/systemd/system/
+#   cp server/tunnels/akm.service /etc/systemd/system/akm-tunnel.service
 #   systemctl daemon-reload
 #   systemctl enable --now akm-tunnel
 [Unit]

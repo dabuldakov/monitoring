@@ -10,7 +10,7 @@
 #   ssh-keygen -y -f /root/.ssh/id_ed25519   # добавить результат на сервер приложений
 #
 # Установка (на машине мониторинга, от root):
-#   cp server/tunnels/apps.service /etc/systemd/system/
+#   cp server/tunnels/apps.service /etc/systemd/system/apps-tunnel.service
 #   systemctl daemon-reload
 #   systemctl enable --now apps-tunnel
 #

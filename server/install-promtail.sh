@@ -51,12 +51,18 @@ sleep 3
 echo "==> promtail: $(docker ps --filter name=^/promtail$ --format '{{.Status}}')"
 
 # Проверяем, что Loki реально виден (иначе логи уйдут в никуда молча).
-if curl -sf -o /dev/null --max-time 5 http://127.0.0.1:3100/ready; then
-  echo "==> Loki на 127.0.0.1:3100 отвечает"
-else
-  echo "!! Loki на 127.0.0.1:3100 недоступен — проверь обратный туннель с машины мониторинга" >&2
-  echo "!! Без него promtail будет копить логи в буфер и ничего не отправит." >&2
-fi
+# /ready у single-binary Loki периодически отдаёт 503 ("waiting for 15s after
+# being ready"), поэтому ориентируемся на сам факт ответа, а не на код 200.
+loki_code=$(curl -s -o /dev/null -m 5 -w '%{http_code}' http://127.0.0.1:3100/ready || echo 000)
+case "$loki_code" in
+  000)
+    echo "!! Loki на 127.0.0.1:3100 недоступен — проверь обратный туннель с машины мониторинга" >&2
+    echo "!! Без него promtail будет копить логи в буфер и ничего не отправит." >&2
+    ;;
+  200) echo "==> Loki на 127.0.0.1:3100 готов" ;;
+  503) echo "==> Loki на 127.0.0.1:3100 отвечает (503 — штатный цикл готовности, скоро отдаст 200)" ;;
+  *)   echo "==> Loki на 127.0.0.1:3100 отвечает кодом $loki_code" ;;
+esac
 
 echo
 echo "Проверка в Grafana (datasource Loki):"

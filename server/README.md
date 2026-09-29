@@ -42,8 +42,8 @@ ssh-keygen -y -f /root/.ssh/id_ed25519
 ## 3. Туннели на машине мониторинга
 
 ```bash
-cp server/tunnels/apps.service /etc/systemd/system/   # сервер приложений
-cp server/tunnels/akm.service  /etc/systemd/system/   # akm-сервер
+cp server/tunnels/apps.service /etc/systemd/system/apps-tunnel.service   # сервер приложений
+cp server/tunnels/akm.service  /etc/systemd/system/akm-tunnel.service   # akm-сервер
 systemctl daemon-reload
 systemctl enable --now apps-tunnel akm-tunnel
 ```

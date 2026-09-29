@@ -85,8 +85,8 @@ cp /opt/loadtest/.env .env       # переносим SMTP-реквизиты и
 ## Шаг 4. Туннели
 
 ```bash
-cp server/tunnels/apps.service /etc/systemd/system/
-cp server/tunnels/akm.service  /etc/systemd/system/
+cp server/tunnels/apps.service /etc/systemd/system/apps-tunnel.service
+cp server/tunnels/akm.service  /etc/systemd/system/akm-tunnel.service
 systemctl daemon-reload
 systemctl enable --now apps-tunnel akm-tunnel
 
