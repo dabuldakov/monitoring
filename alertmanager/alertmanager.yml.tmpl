@@ -6,7 +6,9 @@ global:
 
 route:
   receiver: email
-  group_by: ["alertname", "instance"]
+  # Группируем по серверу и приложению: в одном письме — все сбои одной
+  # машины, а не смесь IP-адресов в одну кучу.
+  group_by: ["alertname", "server", "app"]
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 3h
@@ -22,4 +24,10 @@ receivers:
         require_tls: true
         send_resolved: true
         headers:
-          Subject: "[MUZEA] {{ .Status | toUpper }}: {{ .CommonLabels.alertname }} ({{ .CommonLabels.instance }})"
+          # Тема: сначала что случилось, потом ЧЕЙ это сервер.
+          # server — отображаемое имя из .env (APPS_SERVER_NAME и т.д.);
+          # fallback на instance нужен на случай алерта без этого лейбла.
+          Subject: >-
+            [{{ if eq .Status "firing" }}{{ .CommonLabels.severity | toUpper }}{{ else }}РЕШЕНО{{ end }}]
+            {{ .CommonLabels.server | default .CommonLabels.instance }}:
+            {{ if eq .Status "firing" }}{{ .CommonLabels.alertname }}{{ else }}восстановлен {{ .CommonLabels.alertname }}{{ end }}

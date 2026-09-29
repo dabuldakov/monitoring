@@ -3,6 +3,8 @@
 #
 # Подставляемые переменные берутся из .env (см. .env.example):
 #   APPS_HOST / WCM_HOST / AKM_HOST        — хосты
+#   APPS_SERVER_NAME / WCM_SERVER_NAME /
+#   AKM_SERVER_NAME                         — отображаемые имена серверов
 #   MAKEUP_PORT / CHAT_PORT / WCM_PORT     — порты приложений
 #   *_NODE_EXPORTER_PORT                    — локальные порты туннелей до node_exporter
 
@@ -25,25 +27,36 @@ scrape_configs:
 
   # node_exporter целевых серверов: там он слушает только 127.0.0.1:9100,
   # наружу отдаётся через SSH-туннели с этой машины (server/tunnels/*.service).
+  # instance здесь — отображаемое имя сервера, а не адрес: в дашбордах
+  # (Node Exporter Full) и в алертах IP ничего не говорит человеку.
   - job_name: node
     static_configs:
       - targets: ["127.0.0.1:${AKM_NODE_EXPORTER_PORT}"]
         labels:
-          instance: akm-server
+          instance: ${AKM_SERVER_NAME}
       - targets: ["127.0.0.1:${APPS_NODE_EXPORTER_PORT}"]
         labels:
-          instance: apps-server
+          instance: ${APPS_SERVER_NAME}
       - targets: ["127.0.0.1:${WCM_NODE_EXPORTER_PORT}"]
         labels:
-          instance: countrymonitoring
+          instance: ${WCM_SERVER_NAME}
 
   # RTT/потери до целевых серверов через blackbox_exporter (127.0.0.1:9115).
+  # server — отображаемое имя хоста, по нему алерты пишут «какой сервер упал».
   - job_name: blackbox-icmp
     metrics_path: /probe
     params:
       module: [icmp]
     static_configs:
-      - targets: ["${APPS_HOST}", "${WCM_HOST}", "${AKM_HOST}"]
+      - targets: ["${APPS_HOST}"]
+        labels:
+          server: ${APPS_SERVER_NAME}
+      - targets: ["${WCM_HOST}"]
+        labels:
+          server: ${WCM_SERVER_NAME}
+      - targets: ["${AKM_HOST}"]
+        labels:
+          server: ${AKM_SERVER_NAME}
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -59,8 +72,19 @@ scrape_configs:
     static_configs:
       - targets:
           - "${APPS_HOST}:${MAKEUP_PORT}"   # makeup
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: makeup
+      - targets:
           - "${APPS_HOST}:${CHAT_PORT}"     # chat
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: chat
+      - targets:
           - "${WCM_HOST}:${WCM_PORT}"       # world-country-monitoring
+        labels:
+          server: ${WCM_SERVER_NAME}
+          app: wcm
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -78,8 +102,19 @@ scrape_configs:
     static_configs:
       - targets:
           - "http://${APPS_HOST}:${MAKEUP_PORT}/actuator/health"   # makeup
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: makeup
+      - targets:
           - "http://${APPS_HOST}:${CHAT_PORT}/actuator/health"     # chat
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: chat
+      - targets:
           - "http://${WCM_HOST}:${WCM_PORT}/actuator/health"       # world-country-monitoring
+        labels:
+          server: ${WCM_SERVER_NAME}
+          app: wcm
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

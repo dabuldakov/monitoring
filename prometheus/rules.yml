@@ -1,6 +1,11 @@
 groups:
   - name: backend-availability
     rules:
+      # В аннотациях $labels.server — отображаемое имя сервера (см. .env:
+      # APPS_SERVER_NAME и т.д.), а $labels.instance — технический адрес.
+      # В письме имя сервера подставляет Alertmanager в тему, здесь оно нужно
+      # в теле, чтобы при пересылке письма было понятно, что именно сломалось.
+
       # Приложение не отвечает на /actuator/health (или БД недоступна -> 503)
       - alert: BackendHealthDown
         expr: probe_success{job="blackbox-http-health"} == 0
@@ -8,8 +13,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Бэкенд недоступен: {{ $labels.instance }}"
-          description: "Health-check {{ $labels.instance }} не проходит больше 1 минуты (нет HTTP 200 на /actuator/health)."
+          summary: "Сервер {{ $labels.server }}: приложение {{ $labels.app }} недоступно"
+          description: "На сервере «{{ $labels.server }}» приложение {{ $labels.app }} не проходит health-check ({{ $labels.instance }}) больше 1 минуты: нет HTTP 200 на /actuator/health."
 
       # Порт приложения не принимает соединения
       - alert: BackendPortDown
@@ -18,8 +23,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Порт бэкенда не отвечает: {{ $labels.instance }}"
-          description: "TCP-соединение к {{ $labels.instance }} не устанавливается больше 1 минуты."
+          summary: "Сервер {{ $labels.server }}: порт приложения {{ $labels.app }} не отвечает"
+          description: "На сервере «{{ $labels.server }}» TCP-соединение к порту приложения {{ $labels.app }} ({{ $labels.instance }}) не устанавливается больше 1 минуты."
 
       # Хост сервера не пингуется
       - alert: ServerHostDown
@@ -28,8 +33,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Сервер не пингуется: {{ $labels.instance }}"
-          description: "ICMP-пинг {{ $labels.instance }} не проходит больше 2 минут."
+          summary: "Сервер {{ $labels.server }} не отвечает"
+          description: "Сервер «{{ $labels.server }}» ({{ $labels.instance }}) не проходит ICMP-пинг больше 2 минут. Проверить: питание, сеть, ssh-туннель до node_exporter."
 
       # Высокий RTT до сервера (не критично, но полезно)
       - alert: ServerHighLatency
@@ -38,5 +43,5 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Высокая задержка до сервера: {{ $labels.instance }}"
-          description: "RTT {{ $labels.instance }} > 200ms более 5 минут (сейчас {{ $value | humanizeDuration }})."
+          summary: "Сервер {{ $labels.server }}: высокая задержка"
+          description: "RTT до сервера «{{ $labels.server }}» ({{ $labels.instance }}) больше 200ms уже 5 минут (сейчас {{ $value | humanizeDuration }})."

@@ -7,6 +7,16 @@ cd "$(dirname "$0")"
 [[ -f .env ]] || { echo "!! нет .env — скопируй .env.example в .env"; exit 1; }
 set -a; . ./.env; set +a
 
+# Имена серверов попадают в instance-лейблы и в тему письма, поэтому здесь
+# важно не дать им молча обрезаться. Обрезка происходит, если в .env значение
+# с пробелами не в кавычках: `WCM_SERVER_NAME=WCM Loadtest Monitoring`
+# превращается в попытку выполнить команду `Loadtest`, и переменная
+# становится просто "WCM". Печатаем результат, чтобы это было видно сразу.
+for v in APPS_SERVER_NAME WCM_SERVER_NAME AKM_SERVER_NAME; do
+  [[ -n "${!v:-}" ]] || { echo "!! в .env не задана переменная $v" >&2; exit 1; }
+  echo "    $v = ${!v}"
+done
+
 render() {
   local tpl="$1" out="$2"
   [[ -f "$tpl" ]] || return 0
