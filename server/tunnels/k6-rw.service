@@ -1,0 +1,33 @@
+# Обратный SSH-туннель для remote-write k6: akm-server -> Prometheus.
+#
+# Генератор нагрузки (репозиторий loadtest) живёт на akm-сервере, а Prometheus
+# на машине мониторинга слушает только 127.0.0.1:9090 и наружу не выставлен.
+# Без туннеля k6 оттуда метрики не отправит: дашборд "k6 Prometheus" будет пуст.
+#
+# Тут туннель обратный (-R): мы подключаемся к akm-серверу и пробрасываем
+# порт НА НЕГО. На akm появляется 127.0.0.1:9090, который идёт в наш
+# Prometheus. Порт слушает только loopback akm-сервера, наружу не торчит.
+# Благодаря этому K6_PROMETHEUS_RW_SERVER_URL в loadtest остаётся
+# http://127.0.0.1:9090/api/v1/write — менять ничего не нужно.
+#
+# Почему не публиковать Prometheus наружу: у remote-write нет встроенной
+# аутентификации, любой, кто дойдёт до порта, сможет писать в базу
+# произвольные метрики. Туннель вместо этого аутентифицирован по SSH.
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/tunnels/k6-rw.service /etc/systemd/system/k6-rw-tunnel.service
+#   systemctl daemon-reload
+#   systemctl enable --now k6-rw-tunnel
+[Unit]
+Description=Обратный SSH-туннель akm-server 127.0.0.1:9090 -> Prometheus (remote write k6)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -R 127.0.0.1:9090:127.0.0.1:9090 -p 2222 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new dmitry_buldakov@90.188.89.63
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
