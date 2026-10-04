@@ -128,6 +128,14 @@ scrape_configs:
         labels:
           server: ${WCM_SERVER_NAME}
           app: wcm
+      # Готовность MinIO (readyz). Идёт через тот же туннель 9103, что и метрики;
+      # ловит «процесс жив, но хранилище не готово» (диск, инициализация).
+      # Алерт BackendHealthDown срабатывает по app="minio" автоматически.
+      - targets:
+          - "http://127.0.0.1:${MINIO_PROMETHEUS_PORT}/minio/health/ready"
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: minio
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
