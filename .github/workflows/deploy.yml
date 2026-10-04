@@ -43,5 +43,6 @@ jobs:
             cd "${{ secrets.DEPLOY_PATH }}"
             git fetch --prune origin main
             git reset --hard origin/main
-            # Render конфигов из .env + promtool-валидация + docker compose up.
+            # Render конфигов из .env + promtool-валидация + docker compose up,
+            # затем SIGHUP Prometheus/Alertmanager (см. run.sh reload_configs).
             ./run.sh up

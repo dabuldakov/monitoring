@@ -7,7 +7,7 @@
 #   ./run.sh up            Поднять стек (рендерит конфиги из .env)
 #   ./run.sh down          Остановить стек (метрики и логи сохраняются)
 #   ./run.sh restart       Перезапустить с перерендером конфигов
-#   ./run.sh reload        Перечитать конфиги без перезапуска (Prometheus сам следит за файлом)
+#   ./run.sh reload        Перечитать конфиги без перезапуска (SIGHUP Prometheus/Alertmanager)
 #   ./run.sh status        Статус контейнеров
 #   ./run.sh logs          Логи стека
 #   ./run.sh render        Только перерендерить конфиги из .env
@@ -58,11 +58,22 @@ backup() {
     && echo "==> backup/grafana-datasources.json" || echo "!! не смог прочитать Grafana"
 }
 
+# Prometheus и Alertmanager не перечитывают смонтированные конфиги сами:
+# после перерендера отправляем им SIGHUP (перечитывание без перезапуска).
+reload_configs() {
+  for svc in prometheus alertmanager; do
+    if docker compose ps --status running --services 2>/dev/null | grep -qx "$svc"; then
+      docker compose kill -s SIGHUP "$svc" >/dev/null 2>&1 \
+        && echo "==> $svc: конфиг перечитан (SIGHUP)"
+    fi
+  done
+}
+
 case "${1:-}" in
-  up)      require_compose; ./render.sh; docker compose up -d ;;
+  up)      require_compose; ./render.sh; docker compose up -d; reload_configs ;;
   down)    require_compose; docker compose down ;;
   restart) require_compose; ./render.sh; docker compose up -d --force-recreate ;;
-  reload)  require_compose; ./render.sh; echo "==> Prometheus подхватит файлы сам за ~30с" ;;
+  reload)  require_compose; ./render.sh; reload_configs ;;
   status)  status ;;
   logs)    require_compose; docker compose logs -f --tail=100 ;;
   render)  require_compose; ./render.sh ;;
