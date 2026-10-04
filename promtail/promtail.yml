@@ -41,6 +41,12 @@ scrape_configs:
         regex: 'world-country-monitoring.*'
         target_label: app
         replacement: 'wcm'
+      # Общий MinIO (отдельный проект shared-minio) — чтобы логи хранилища
+      # были доступны как {app="minio"} и в дашборде Backend Logs.
+      - source_labels: ['container']
+        regex: 'shared-minio-minio.*'
+        target_label: app
+        replacement: 'minio'
     pipeline_stages:
       # JSON-логи приложений (chat/makeup): уровень в отдельный label.
       - match:

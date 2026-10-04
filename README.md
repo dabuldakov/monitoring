@@ -66,6 +66,7 @@ Promtail на каждом сервере приложений шлёт логи
 ```
 {app="chat"}                     логи chat
 {app="makeup"}                   логи makeup
+{app="minio"}                    логи общего MinIO (проект shared-minio)
 {app="wcm"}                      логи world-country-monitoring
 {app=~"chat|makeup"} |="ERROR"   ошибки
 {app="chat"} | json | user="42"  логи конкретного пользователя
