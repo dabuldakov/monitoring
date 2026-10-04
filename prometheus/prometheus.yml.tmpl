@@ -7,6 +7,7 @@
 #   AKM_SERVER_NAME                         — отображаемые имена серверов
 #   MAKEUP_PORT / CHAT_PORT / WCM_PORT     — порты приложений
 #   *_NODE_EXPORTER_PORT                    — локальные порты туннелей до node_exporter
+#   MINIO_PROMETHEUS_PORT                   — локальный порт туннеля до метрик MinIO
 
 global:
   scrape_interval: 15s
@@ -40,6 +41,18 @@ scrape_configs:
       - targets: ["127.0.0.1:${WCM_NODE_EXPORTER_PORT}"]
         labels:
           instance: ${WCM_SERVER_NAME}
+
+  # Метрики общего MinIO (проект shared-minio) на сервере приложений.
+  # Endpoint /minio/v2/metrics/cluster отдаётся без токена
+  # (MINIO_PROMETHEUS_AUTH_TYPE=public) и доступен только через SSH-туннель.
+  # Нужны для алертов по заполнению диска; дашборды читают их из Grafana.
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ["127.0.0.1:${MINIO_PROMETHEUS_PORT}"]
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: minio
 
   # RTT/потери до целевых серверов через blackbox_exporter (127.0.0.1:9115).
   # server — отображаемое имя хоста, по нему алерты пишут «какой сервер упал».

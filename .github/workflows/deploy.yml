@@ -1,0 +1,47 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy monitoring stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify deploy secrets
+        env:
+          S_HOST: ${{ secrets.DEPLOY_HOST }}
+          S_USER: ${{ secrets.DEPLOY_USER }}
+          S_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          S_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          missing=""
+          [ -n "$S_HOST" ] || missing="$missing DEPLOY_HOST"
+          [ -n "$S_USER" ] || missing="$missing DEPLOY_USER"
+          [ -n "$S_KEY" ]  || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "$S_PATH" ] || missing="$missing DEPLOY_PATH"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            exit 1
+          fi
+      - name: Pull and reload stack
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          command_timeout: 20m
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch --prune origin main
+            git reset --hard origin/main
+            # Render конфигов из .env + promtool-валидация + docker compose up.
+            ./run.sh up

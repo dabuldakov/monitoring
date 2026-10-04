@@ -45,3 +45,35 @@ groups:
         annotations:
           summary: "Сервер {{ $labels.server }}: высокая задержка"
           description: "RTT до сервера «{{ $labels.server }}» ({{ $labels.instance }}) больше 200ms уже 5 минут (сейчас {{ $value | humanizeDuration }})."
+
+  - name: minio
+    rules:
+      # Хранилище не отвечает на метрики (упал или порван туннель).
+      - alert: MinioDown
+        expr: up{job="minio"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сервер {{ $labels.server }}: MinIO недоступен"
+          description: "Метрики MinIO ({{ $labels.instance }}) не снимаются больше 2 минут. Проверить контейнер shared-minio и ssh-туннель 127.0.0.1:9103."
+
+      # Свободного места на хранилище мало.
+      - alert: MinioDiskSpaceLow
+        expr: minio_cluster_capacity_usable_free_bytes / minio_cluster_capacity_usable_total_bytes < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MinIO: мало свободного места ({{ $value | humanizePercentage }})"
+          description: "Свободно {{ $value | humanizePercentage }} от usable-объёма MinIO дольше 10 минут. Очистить старые объекты или расширить диск."
+
+      # Совсем мало места — загрузки могут начать падать.
+      - alert: MinioDiskSpaceCritical
+        expr: minio_cluster_capacity_usable_free_bytes / minio_cluster_capacity_usable_total_bytes < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MinIO: критически мало места ({{ $value | humanizePercentage }})"
+          description: "Свободно менее 5% usable-объёма MinIO дольше 5 минут. Загрузки видео/картинок могут начать падать (503 SlowDown)."
