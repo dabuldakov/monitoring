@@ -4,7 +4,7 @@
 # Подставляемые переменные берутся из .env (см. .env.example):
 #   APPS_HOST / WCM_HOST / AKM_HOST        — хосты
 #   APPS_SERVER_NAME / WCM_SERVER_NAME /
-#   AKM_SERVER_NAME                         — отображаемые имена серверов
+#   AKM_SERVER_NAME / TRADING_SERVER_NAME  — отображаемые имена серверов
 #   MAKEUP_PORT / CHAT_PORT / WCM_PORT     — порты приложений
 #   *_NODE_EXPORTER_PORT                    — локальные порты туннелей до node_exporter
 #   MINIO_PROMETHEUS_PORT                   — локальный порт туннеля до метрик MinIO
@@ -41,6 +41,9 @@ scrape_configs:
       - targets: ["127.0.0.1:${WCM_NODE_EXPORTER_PORT}"]
         labels:
           instance: ${WCM_SERVER_NAME}
+      - targets: ["127.0.0.1:${TRADING_NODE_EXPORTER_PORT}"]
+        labels:
+          instance: ${TRADING_SERVER_NAME}
 
   # Метрики общего MinIO (проект shared-minio) на сервере приложений.
   # Endpoint /minio/v2/metrics/cluster отдаётся без токена
@@ -70,6 +73,9 @@ scrape_configs:
       - targets: ["${AKM_HOST}"]
         labels:
           server: ${AKM_SERVER_NAME}
+      - targets: ["${TRADING_HOST}"]
+        labels:
+          server: ${TRADING_SERVER_NAME}
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

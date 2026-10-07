@@ -1,0 +1,31 @@
+# SSH-туннель к node_exporter на сервере trading (134.0.117.59).
+#
+# node_exporter там слушает только 127.0.0.1:9100 (server/install-node-exporter.sh),
+# наружу не торчит. Prometheus скрейпит пробрасываемый порт как 127.0.0.1:9104
+# (job node, instance=Trading в prometheus/prometheus.yml.tmpl).
+#
+# Требуется: публичный ключ машины мониторинга в authorized_keys сервера trading
+#   ssh-keygen -y -f /root/.ssh/id_ed25519   # добавить результат на 134.0.117.59
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/tunnels/trading.service /etc/systemd/system/trading-tunnel.service
+#   systemctl daemon-reload
+#   systemctl enable --now trading-tunnel
+#
+# Проверка:
+#   systemctl status trading-tunnel
+#   ss -ltnp | grep 9104
+#   curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9104/metrics  # 200
+[Unit]
+Description=SSH-туннель к node_exporter сервера trading: 127.0.0.1:9104
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9104:127.0.0.1:9100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@134.0.117.59
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -12,7 +12,7 @@ set -a; . ./.env; set +a
 # с пробелами не в кавычках: `WCM_SERVER_NAME=WCM Loadtest Monitoring`
 # превращается в попытку выполнить команду `Loadtest`, и переменная
 # становится просто "WCM". Печатаем результат, чтобы это было видно сразу.
-for v in APPS_SERVER_NAME WCM_SERVER_NAME AKM_SERVER_NAME; do
+for v in APPS_SERVER_NAME WCM_SERVER_NAME AKM_SERVER_NAME TRADING_SERVER_NAME; do
   [[ -n "${!v:-}" ]] || { echo "!! в .env не задана переменная $v" >&2; exit 1; }
   echo "    $v = ${!v}"
 done

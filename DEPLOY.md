@@ -17,9 +17,13 @@
                node_exporter     метрики самого себя (127.0.0.1:9101)
                apps-tunnel       SSH-туннели к 168.222.194.206
                akm-tunnel        SSH-туннель к 90.188.89.63
+               trading-tunnel    SSH-туннель к 134.0.117.59 (127.0.0.1:9104)
                k6-rw-tunnel      обратный SSH-туннель: k6-метрики в Prometheus
 
 168.222.194.206                  chat, makeup + promtail + node_exporter
+
+134.0.117.59                     trading (app, collector, postgres, redis, caddy)
+                                + node_exporter, без promtail
 
 90.188.89.63                    gitlab и прочее + node_exporter (без promtail —
                                 Loki туда не доставить, логи не нужны)
@@ -135,10 +139,11 @@ cp /opt/loadtest/.env .env       # переносим SMTP-реквизиты и
 ```bash
 cp server/tunnels/apps.service /etc/systemd/system/apps-tunnel.service
 cp server/tunnels/akm.service  /etc/systemd/system/akm-tunnel.service
+cp server/tunnels/trading.service /etc/systemd/system/trading-tunnel.service
 cp server/tunnels/k6-rw.service /etc/systemd/system/k6-rw-tunnel.service
 cp server/tunnels/k6-wcm.service /etc/systemd/system/k6-wcm-tunnel.service
 systemctl daemon-reload
-systemctl enable --now apps-tunnel akm-tunnel k6-rw-tunnel k6-wcm-tunnel
+systemctl enable --now apps-tunnel akm-tunnel trading-tunnel k6-rw-tunnel k6-wcm-tunnel
 
 # старый юнит дублирует akm-tunnel — выключаем
 systemctl disable --now node-exporter-tunnel
@@ -179,13 +184,14 @@ cd /opt/monitoring
 ./run.sh status
 ```
 
-`./run.sh status` покажет контейнеры и доступность всех трёх портов
+`./run.sh status` покажет контейнеры и доступность всех портов
 node_exporter. Ожидаемо:
 
 ```
 127.0.0.1:9100  доступен     (akm, через akm-tunnel)
 127.0.0.1:9102  доступен     (сервер приложений, через apps-tunnel)
 127.0.0.1:9101  доступен     (этот хост)
+127.0.0.1:9104  доступен     (trading, через trading-tunnel)
 ```
 
 ## Шаг 6. Проверка, что видно всё
@@ -276,3 +282,29 @@ cd /opt/monitoring && git pull && ./run.sh up
 `promtool` в `render.sh` проверяет конфиг до старта: если в `.env` забыли
 переменную, стек не поднимется с непонятной ошибкой, а рендер упадёт сразу
 с списком незаполненных подстановок.
+
+## Добавление нового сервера
+
+Порядок на примере `134.0.117.59` (trading). Перезапускать ничего не нужно:
+агент ставится на целевом хосте, туннель — новый systemd-юнит, а Prometheus
+перечитывает конфиг по SIGHUP (`./run.sh up` в конце шлёт его сам).
+
+1. **Ключ**: публичный ключ машины мониторинга (`ssh-keygen -y -f /root/.ssh/id_ed25519`)
+   добавить в `~/.ssh/authorized_keys` нового сервера.
+2. **Агент** на сервере: `scp server/install-node-exporter.sh root@<host>:/root/`
+   и запустить его — поднимет контейнер `node_exporter` на `127.0.0.1:9100`,
+   ничего из запущенного не трогая. Без Docker можно и без него, но скрипт
+   рассчитан на Docker.
+3. **Юнит туннеля**: скопировать `server/tunnels/<name>.service` (свободный
+   локальный порт, дальше по счёту `9104`) и `systemctl enable --now <name>-tunnel`.
+4. **`.env` на машине мониторинга** (в git не входит, правится прямо там):
+   `<NAME>_HOST`, `<NAME>_SERVER_NAME`, `<NAME>_NODE_EXPORTER_PORT`.
+   Затем в git: те же переменные в `.env.example`, цели в
+   `prometheus/prometheus.yml.tmpl` (job `node` + `blackbox-icmp`),
+   порт в `run.sh` (`status`), проверку имени в `render.sh`.
+5. **Деплой**: коммит и push — CI сделает `git reset` и `./run.sh up`
+   (рендер + promtool + SIGHUP, контейнеры не пересоздаются).
+
+Проверка: `./run.sh status` (порт туннеля доступен), затем в Prometheus
+`up{job="node"}` и в Grafana дашборд `Node Exporter Full` с выбором
+инстанса `Trading`.

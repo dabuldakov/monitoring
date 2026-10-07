@@ -15,7 +15,7 @@
 #   ./run.sh tunnels       Статус SSH-туннелей к node_exporter
 #
 # Переменные (все в .env, см. .env.example):
-#   APPS_HOST / WCM_HOST / AKM_HOST     — что мониторим
+#   APPS_HOST / WCM_HOST / AKM_HOST / TRADING_HOST — что мониторим
 #   *_PORT                              — порты приложений и туннелей
 #   GRAFANA_BIND_ADDR / GRAFANA_PORT    — как торчит Grafana
 #   SMTP_* / ALERT_EMAIL_*              — куда шлём алерты
@@ -39,7 +39,7 @@ status() {
   docker compose ps
   echo
   echo "Туннели до node_exporter:"
-  for p in "${AKM_NODE_EXPORTER_PORT:-9100}" "${APPS_NODE_EXPORTER_PORT:-9102}" "${WCM_NODE_EXPORTER_PORT:-9101}"; do
+  for p in "${AKM_NODE_EXPORTER_PORT:-9100}" "${APPS_NODE_EXPORTER_PORT:-9102}" "${WCM_NODE_EXPORTER_PORT:-9101}" "${TRADING_NODE_EXPORTER_PORT:-9104}"; do
     if (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; then
       echo "  127.0.0.1:$p  доступен"
     else
