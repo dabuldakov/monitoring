@@ -60,20 +60,65 @@ backup() {
 
 # Prometheus и Alertmanager не перечитывают смонтированные конфиги сами:
 # после перерендера отправляем им SIGHUP (перечитывание без перезапуска).
+#
+# Две ловушки, из-за которых стек уже один раз молча лёг:
+#
+# 1) SIGHUP в первые секунды жизни процесса его убивает: обработчик сигнала
+#    ещё не установлен, срабатывает действие по умолчанию (prometheus:v3.14
+#    в такой ситуации завершается с exit=2 — проверено). Убийство ушло через
+#    API docker, поэтому restart-политика его не аварией считает и контейнер
+#    остаётся лежать. Значит, контейнеру, только что поднятому через `up -d`,
+#    SIGHUP не шлём: новый конфиг он и так уже прочитал при старте.
+# 2) SIGHUP может убить и warmed-up процесс — отправили и разошлись, а сервис
+#    мёртв. Проверяем после отправки; если умер — поднимаем тем же
+#    `docker compose start` (без пересоздания, история и тома не трогаются).
 reload_configs() {
   for svc in prometheus alertmanager; do
-    if docker compose ps --status running --services 2>/dev/null | grep -qx "$svc"; then
-      docker compose kill -s SIGHUP "$svc" >/dev/null 2>&1 \
-        && echo "==> $svc: конфиг перечитан (SIGHUP)"
+    docker compose ps --status running --services 2>/dev/null | grep -qx "$svc" || continue
+    local cid started uptime
+    cid=$(docker compose ps -q "$svc" | head -n1) || cid=""
+    [[ -n "$cid" ]] || continue
+    started=$(date -u -d "$(docker inspect -f '{{.State.StartedAt}}' "$cid")" +%s) || continue
+    uptime=$(( $(date -u +%s) - started ))
+    if (( uptime < 10 )); then
+      echo "==> $svc: запущен ${uptime}с назад — конфиг загружен при старте, SIGHUP не нужен"
+      continue
+    fi
+    if docker compose kill -s SIGHUP "$svc" >/dev/null 2>&1; then
+      echo "==> $svc: конфиг перечитан (SIGHUP)"
+    fi
+    if [[ "$(docker inspect -f '{{.State.Status}}' "$cid")" != "running" ]]; then
+      docker compose start "$svc" >/dev/null 2>&1 \
+        && echo "!! $svc остановился после SIGHUP — снова запущен (без пересоздания)" >&2
     fi
   done
 }
 
+# Ждём, пока Prometheus/Alertmanager отвечат на /-/ready. Без этого деплой
+# «успешно» проходил и при лежащем Prometheus: CI зелёный, метрики мёртвые.
+wait_ready() {
+  local name="$1" url="$2" i
+  for i in $(seq 1 30); do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      echo "==> $name: готов ($url)"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "!! $name не готов за 30 секунд: $url" >&2
+  return 1
+}
+
+check_stack() {
+  wait_ready Prometheus  http://127.0.0.1:9090/-/ready
+  wait_ready Alertmanager http://127.0.0.1:9093/-/ready
+}
+
 case "${1:-}" in
-  up)      require_compose; ./render.sh; docker compose up -d; reload_configs ;;
+  up)      require_compose; ./render.sh; docker compose up -d; reload_configs; check_stack ;;
   down)    require_compose; docker compose down ;;
-  restart) require_compose; ./render.sh; docker compose up -d --force-recreate ;;
-  reload)  require_compose; ./render.sh; reload_configs ;;
+  restart) require_compose; ./render.sh; docker compose up -d --force-recreate; check_stack ;;
+  reload)  require_compose; ./render.sh; reload_configs; check_stack ;;
   status)  status ;;
   logs)    require_compose; docker compose logs -f --tail=100 ;;
   render)  require_compose; ./render.sh ;;
