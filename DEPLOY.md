@@ -308,3 +308,25 @@ cd /opt/monitoring && git pull && ./run.sh up
 Проверка: `./run.sh status` (порт туннеля доступен), затем в Prometheus
 `up{job="node"}` и в Grafana дашборд `Node Exporter Full` с выбором
 инстанса `Trading`.
+
+## Статус trading (контейнеры и сессии)
+
+Помимо метрик хоста на trading (`134.0.117.59`) собирается **статус стратегий** —
+какие контейнеры запущены и сколько сессий в работе. Агент
+`server/trading-status/collect.sh` пишет `trading.prom`, node_exporter отдаёт
+его через textfile-коллектор (флаг добавляется скриптом автоматически).
+
+```bash
+# на trading-сервере
+scp -r server/trading-status root@134.0.117.59:/root/trading-status
+ssh root@134.0.117.59
+  /root/install-node-exporter.sh      # пересоздать node_exporter c textfile-режимом
+  /root/trading-status/install.sh     # systemd-таймер, метрики каждые 30 с
+```
+
+Метрики: `trading_container_up`, `trading_container_state_code`,
+`trading_sessions_running`, `trading_session_info`, `trading_session_age_seconds`.
+Дашборд `Trading / Trading Status`, алерты — группа `trading-status` в
+`prometheus/rules.yml` (критичные контейнеры `required="true"`, опциональные
+трейдеры — warning). Ожидаемые контейнеры задаются в начале `collect.sh`
+(`EXPECTED`, `CRITICAL`).

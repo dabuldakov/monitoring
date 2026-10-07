@@ -39,6 +39,24 @@ ssh-keygen -y -f /root/.ssh/id_ed25519
 поднимает контейнер. Конфиг promtail — один на все серверы, меняется здесь
 (`promtail/promtail.yml`) и раскатывается повторным запуском скрипта.
 
+### Статус trading-контейнеров и сессий (только на 134.0.117.59)
+
+Метрики `trading_*` (какие контейнеры/сессии trading запущены) пишет агент
+`server/trading-status/collect.sh` через textfile-коллектор node_exporter.
+`install-node-exporter.sh` уже запускает node_exporter с флагом
+`--collector.textfile.directory`.
+
+```bash
+scp -r server/trading-status root@134.0.117.59:/root/trading-status
+ssh root@134.0.117.59
+  /root/install-node-exporter.sh      # пересоздать node_exporter с textfile-режимом
+  /root/trading-status/install.sh     # ставит systemd-таймер (30 с) и прогоняет сразу
+```
+
+Ожидаемые контейнеры правится в начале `collect.sh`: `EXPECTED` — все, про
+которые обязаны знать даже в отсутствие, `CRITICAL` — те, на чьё падение
+заводится алерт (`TradingContainerDown`). Дашборд — `Trading / Trading Status`.
+
 ## 3. Туннели на машине мониторинга
 
 ```bash

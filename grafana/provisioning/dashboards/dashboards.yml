@@ -33,3 +33,14 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/availability
       foldersFromFilesStructure: false
+
+  - name: status
+    orgId: 1
+    folder: Trading
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/status
+      foldersFromFilesStructure: false

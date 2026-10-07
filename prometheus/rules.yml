@@ -77,3 +77,40 @@ groups:
         annotations:
           summary: "MinIO: критически мало места ({{ $value | humanizePercentage }})"
           description: "Свободно менее 5% usable-объёма MinIO дольше 5 минут. Загрузки видео/картинок могут начать падать (503 SlowDown)."
+
+# Статус trading-сервера: контейнеры и сессии. Метрики пишет агент
+# server/trading-status/collect.sh через textfile-коллектор node_exporter.
+  - name: trading-status
+    rules:
+      # Критичные контейнеры (label required="true"): остановлены или исчезли.
+      - alert: TradingContainerDown
+        expr: trading_container_up{required="true"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Trading: контейнер {{ $labels.name }} не работает"
+          description: "Контейнер {{ $labels.name }} (роль {{ $labels.role }}, сервер «{{ $labels.instance }}») отсутствует или остановлен больше 2 минут."
+
+      # Опциональные трейдеры: задачи не крутятся (например, пропали, как
+      # trades-bot/dn/bot-api/bcs-bot). Если пускать не планируется — убери
+      # имя из EXPECTED в server/trading-status/collect.sh.
+      - alert: TradingTraderStopped
+        expr: trading_container_up{required="false", role="trader"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trading: трейдер {{ $labels.name }} не запущен"
+          description: "Трейдер {{ $labels.name }} на сервере «{{ $labels.instance }}» не запущен больше 15 минут (задуманный простой — убери его из EXPECTED в collect.sh)."
+
+      # Агент статуса перестал писать метрики — значит либо node_exporter
+      # упал, либо таймер коллектора не работает.
+      - alert: TradingStatusCollectorStale
+        expr: absent(trading_container_up{required="true"})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trading: нет метрик статуса"
+          description: "Метрики trading_container_up отсутствуют больше 10 минут. Проверить node_exporter (127.0.0.1:9100) и таймер trading-status-collector."

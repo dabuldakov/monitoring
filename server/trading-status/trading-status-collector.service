@@ -1,0 +1,9 @@
+[Unit]
+Description=Сбор метрик статуса trading (контейнеры и сессии) в textfile node_exporter
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/trading-status/collect.sh
+Nice=10
+TimeoutStartSec=60

@@ -12,11 +12,13 @@
 | Alertmanager | рассылка алертов на email | нет (`127.0.0.1:9093`) |
 | blackbox_exporter | живость приложений (`/actuator/health`), TCP, ICMP | нет (`127.0.0.1:9115`) |
 | Loki | хранилище логов всех контейнеров, ретеншн 14 дней | нет (`127.0.0.1:3100`) |
-| Grafana | дашборды: k6, node_exporter, availability, логи | да, адрес из `.env` |
+| Grafana | дашборды: k6, node_exporter, availability, logs, trading status | да, адрес из `.env` |
 
 Агенты на целевых серверах (`server/`): **node_exporter** (метрики хоста)
 и **promtail** (сбор docker-логов в Loki). Оба слушают только loopback,
 доступны через SSH-туннели — подробности в [server/README.md](server/README.md).
+На trading-сервере дополнительно собирается **статус контейнеров и сессий**
+(`server/trading-status/`, дашборд `Trading / Trading Status`).
 
 ## Быстрый старт
 
