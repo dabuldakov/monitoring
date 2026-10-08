@@ -20,7 +20,12 @@ OUT_DIR="${TEXTFILE_DIR:-/var/lib/node-exporter/textfile}"
 OUT="${OUT_DIR}/trading.prom"
 API="${TRADING_API:-http://127.0.0.1:8000/api}"
 
-CRITICAL="${CRITICAL:-trading-app-1 trading-caddy-1 trading-collector-1 trading-postgres-1 trading-redis-1 pairs-mn}"
+# Инфраструктура compose-проекта — падение критично (TradingContainerDown).
+# Live-трейдеры (pairs-energy, pairs-materials, pairs-fin, pairs-consumer и
+# прочие с меткой trading.role=trader) намеренно НЕ в CRITICAL: они
+# обнаруживаются автоматически как required=false,role=trader и попадают под
+# мягкий алерт TradingTraderStopped.
+CRITICAL="${CRITICAL:-trading-app-1 trading-caddy-1 trading-collector-1 trading-postgres-1 trading-redis-1}"
 EXPECTED="${EXPECTED:-$CRITICAL trades-bot dn bot-api bcs-bot}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT:-trading}"
 
