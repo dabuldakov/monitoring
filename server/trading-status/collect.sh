@@ -113,7 +113,7 @@ running_by_role() {
 
 # --- сессии ---------------------------------------------------------------
 session_lines() {
-  local body id strategy broker pair started age
+  local body id strategy broker sector pair started age
   declare -A per_strategy=()
   local total=0
 
@@ -123,28 +123,30 @@ session_lines() {
     return 0
   fi
 
-  while IFS=$'\t' read -r id strategy broker pair started; do
+  while IFS=$'\t' read -r id strategy broker sector pair started; do
     [ -n "$id" ] || continue
     age=$(( $(date -u +%s) - $(date -u -d "$started" +%s) ))
     [ "$age" -lt 0 ] && age=0
-    printf 'trading_session_info{id="%s",strategy="%s",broker="%s",pair="%s"} 1\n' \
-      "$(esc "$id")" "$(esc "$strategy")" "$(esc "$broker")" "$(esc "$pair")"
-    printf 'trading_session_age_seconds{id="%s",strategy="%s",broker="%s",pair="%s"} %s\n' \
-      "$(esc "$id")" "$(esc "$strategy")" "$(esc "$broker")" "$(esc "$pair")" "$age"
-    key="$strategy"$'\t'"$broker"
+    printf 'trading_session_info{id="%s",strategy="%s",broker="%s",sector="%s",pair="%s"} 1\n' \
+      "$(esc "$id")" "$(esc "$strategy")" "$(esc "$broker")" "$(esc "$sector")" "$(esc "$pair")"
+    printf 'trading_session_age_seconds{id="%s",strategy="%s",broker="%s",sector="%s",pair="%s"} %s\n' \
+      "$(esc "$id")" "$(esc "$strategy")" "$(esc "$broker")" "$(esc "$sector")" "$(esc "$pair")" "$age"
+    key="$strategy"$'\t'"$broker"$'\t'"$sector"
     per_strategy["$key"]=$(( ${per_strategy[$key]:-0} + 1 ))
     total=$(( total + 1 ))
   done < <(jq -r '.sessions[]
                  | select(.status == "running")
                  | [(.id | tostring), .strategy, .broker,
-                    (.params.pair // "-"), .started_at]
+                    (.sector // "-"), (.params.pair // "-"), .started_at]
                  | @tsv' <<<"$body" 2>/dev/null)
 
   for key in "${!per_strategy[@]}"; do
     strategy=${key%%$'\t'*}
-    broker=${key#*$'\t'}
-    printf 'trading_sessions_running{strategy="%s",broker="%s"} %s\n' \
-      "$(esc "$strategy")" "$(esc "$broker")" "${per_strategy[$key]}"
+    rest=${key#*$'\t'}
+    broker=${rest%%$'\t'*}
+    sector=${rest#*$'\t'}
+    printf 'trading_sessions_running{strategy="%s",broker="%s",sector="%s"} %s\n' \
+      "$(esc "$strategy")" "$(esc "$broker")" "$(esc "$sector")" "${per_strategy[$key]}"
   done
   echo "trading_sessions_running_total $total"
   echo "trading_status_scrape_success 1"
