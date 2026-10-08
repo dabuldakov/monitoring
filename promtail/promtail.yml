@@ -47,6 +47,17 @@ scrape_configs:
         regex: 'shared-minio-minio.*'
         target_label: app
         replacement: 'minio'
+      # Сервер trading: инфраструктура (trading-app/caddy/collector/postgres/redis)
+      # -> {app="trading"}, а live-трейдеры (pairs-mn, donchian-*) помечены
+      # docker-меткой trading.role=trader -> {app="trader"}.
+      - source_labels: ['__meta_docker_container_label_trading_role']
+        regex: 'trader'
+        target_label: app
+        replacement: 'trader'
+      - source_labels: ['container']
+        regex: 'trading-.*'
+        target_label: app
+        replacement: 'trading'
     pipeline_stages:
       # JSON-логи приложений (chat/makeup): уровень в отдельный label.
       - match:
@@ -64,5 +75,14 @@ scrape_configs:
           stages:
             - regex:
                 expression: '^(?P<ts>\S+)\s+(?P<level>TRACE|DEBUG|INFO|WARN|ERROR|FATAL)\b'
+            - labels:
+                level:
+      # trading и трейдеры пишут Python-лог вида
+      #   2026-10-08 04:18:44,872 INFO <tracking_id> GetCandles
+      - match:
+          selector: '{app=~"trading|trader"}'
+          stages:
+            - regex:
+                expression: '^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[,.]\d+)\s+(?P<level>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL)\b'
             - labels:
                 level:

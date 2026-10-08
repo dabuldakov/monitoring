@@ -245,6 +245,32 @@
           "legendFormat": "{{level}}"
         }
       ]
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Trading logs",
+      "description": "Логи сервера trading: инфраструктура (app=trading) и live-трейдеры (app=trader).",
+      "datasource": { "type": "loki", "uid": "ds_loki" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 36 },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "ds_loki" },
+          "expr": "{app=~\"trading|trader\"}",
+          "queryType": "range"
+        }
+      ]
     }
   ]
 }

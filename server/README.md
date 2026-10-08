@@ -57,6 +57,25 @@ ssh root@134.0.117.59
 которые обязаны знать даже в отсутствие, `CRITICAL` — те, на чьё падение
 заводится алерт (`TradingContainerDown`). Дашборд — `Trading / Trading Status`.
 
+### Логи trading-сервера
+
+На trading-сервере логи контейнеров собирает **promtail** и шлёт в Loki на
+машине мониторинга. Канал к Loki — обратный SSH-туннель (`-R`) внутри
+`server/tunnels/trading.service`, поэтому поставить promtail нужно так:
+
+```bash
+# на машине мониторинга: обновить туннель (добавлен -R 127.0.0.1:3100)
+cp server/tunnels/trading.service /etc/systemd/system/trading-tunnel.service
+systemctl daemon-reload && systemctl restart trading-tunnel
+
+# на trading-сервере: promtail
+scp promtail/promtail.yml server/install-promtail.sh root@134.0.117.59:/root/
+ssh root@134.0.117.59 '/root/install-promtail.sh /root/promtail.yml'
+```
+
+Проверка: `ssh root@134.0.117.59 'curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3100/ready'` → `200`.
+В Grafana: `{app="trading"}` — инфраструктура, `{app="trader"}` — live-трейдеры.
+
 ## 3. Туннели на машине мониторинга
 
 ```bash

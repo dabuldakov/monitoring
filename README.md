@@ -70,8 +70,11 @@ Promtail на каждом сервере приложений шлёт логи
 {app="makeup"}                   логи makeup
 {app="minio"}                    логи общего MinIO (проект shared-minio)
 {app="wcm"}                      логи world-country-monitoring
+{app="trading"}                  логи trading-инфраструктуры (app/caddy/collector/postgres/redis)
+{app="trader"}                   логи live-трейдеров (pairs-mn, donchian-*)
 {app=~"chat|makeup"} |="ERROR"   ошибки
 {app="chat"} | json | user="42"  логи конкретного пользователя
 ```
 
-Дашборд `Logs / Backend Logs` уже настроен на эти лейблы.
+Дашборд `Logs / Backend Logs` уже настроен на эти лейблы и содержит отдельную
+панель `Trading logs`.

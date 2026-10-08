@@ -4,8 +4,12 @@
 # наружу не торчит. Prometheus скрейпит пробрасываемый порт как 127.0.0.1:9104
 # (job node, instance=Trading в prometheus/prometheus.yml.tmpl).
 #
+# Второй канал — обратный (-R 127.0.0.1:3100): на сервере trading появляется
+# 127.0.0.1:3100, ведущий в Loki на машине мониторинга. Туда promtail с сервера
+# trading шлёт docker-логи (server/install-promtail.sh).
+#
 # Требуется: публичный ключ машины мониторинга в authorized_keys сервера trading
-#   ssh-keygen -y -f /root/.ssh/id_ed25519   # добавить результат на 134.0.117.59
+#   ssh-keygen -y -f /root/.ssh/id_ed25519   # добавить на 134.0.117.59
 #
 # Установка (на машине мониторинга, от root):
 #   cp server/tunnels/trading.service /etc/systemd/system/trading-tunnel.service
@@ -16,14 +20,15 @@
 #   systemctl status trading-tunnel
 #   ss -ltnp | grep 9104
 #   curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9104/metrics  # 200
+#   ssh root@134.0.117.59 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3100/ready'  # 200
 [Unit]
-Description=SSH-туннель к node_exporter сервера trading: 127.0.0.1:9104
+Description=SSH-туннель к серверу trading: node_exporter 127.0.0.1:9104 и обратный Loki 127.0.0.1:3100
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9104:127.0.0.1:9100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@134.0.117.59
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9104:127.0.0.1:9100 -R 127.0.0.1:3100:127.0.0.1:3100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@134.0.117.59
 Restart=always
 RestartSec=5
 
