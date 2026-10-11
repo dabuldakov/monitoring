@@ -10,6 +10,12 @@
 #   trading_sessions_running_total                    всего running
 #   trading_session_info{id,strategy,broker,pair}     1 — каждая живая сессия
 #   trading_session_age_seconds{...}                  возраст сессии
+#   trading_trader_up_seconds{run}                    время работы трейдера
+#   trading_trader_ticks_total{run}                   тиков (counter)
+#   trading_trader_orders_total{run}                  заявок (counter)
+#   trading_trader_tick_errors_total{run}             ошибок тика (counter)
+#   trading_trader_order_ms_avg{run}                  ср. латентность заявки, мс
+#   trading_trader_order_ms_max{run}                  макс. латентность заявки, мс
 #
 # EXPECTED — контейнеры, про которые обязаны знать даже в отсутствие (up=0):
 #            без этого исчезнувший контейнер не виден в метриках вообще.
@@ -152,6 +158,31 @@ session_lines() {
   echo "trading_status_scrape_success 1"
 }
 
+# --- метрики трейдеров -----------------------------------------------------
+# Трейдеры раз в минуту пишут heartbeat в лог:
+#   metrics: up=3600s ticks=720 orders=4 tick_errors=0 order_ms:avg=305 max=340 n=4
+# Парсим последнюю такую строку из docker logs каждого трейдера.
+trader_lines() {
+  local name line up ticks orders errors oavg omax
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    line=$(docker logs --since 3m "$name" 2>&1 | grep -o 'metrics: .*' | tail -1 || true)
+    [ -n "$line" ] || continue
+    up=$(sed -n 's/.*up=\([0-9]\+\).*/\1/p' <<<"$line" | head -1)
+    ticks=$(sed -n 's/.*ticks=\([0-9]\+\).*/\1/p' <<<"$line" | head -1)
+    orders=$(sed -n 's/.*orders=\([0-9]\+\).*/\1/p' <<<"$line" | head -1)
+    errors=$(sed -n 's/.*tick_errors=\([0-9]\+\).*/\1/p' <<<"$line" | head -1)
+    oavg=$(sed -n 's/.*order_ms:avg=\([0-9]\+\).*/\1/p' <<<"$line" | head -1)
+    omax=$(sed -n 's/.*order_ms:avg=[0-9]\+ max=\([0-9]\+\).*/\1/p' <<<"$line" | head -1)
+    printf 'trading_trader_up_seconds{run="%s"} %s\n' "$(esc "$name")" "${up:-0}"
+    printf 'trading_trader_ticks_total{run="%s"} %s\n' "$(esc "$name")" "${ticks:-0}"
+    printf 'trading_trader_orders_total{run="%s"} %s\n' "$(esc "$name")" "${orders:-0}"
+    printf 'trading_trader_tick_errors_total{run="%s"} %s\n' "$(esc "$name")" "${errors:-0}"
+    printf 'trading_trader_order_ms_avg{run="%s"} %s\n' "$(esc "$name")" "${oavg:-0}"
+    printf 'trading_trader_order_ms_max{run="%s"} %s\n' "$(esc "$name")" "${omax:-0}"
+  done < <(docker ps --filter label=trading.role=trader --format '{{.Names}}')
+}
+
 tmp=$(mktemp "$OUT_DIR/.trading.prom.XXXXXX")
 {
   echo "# HELP trading_status_scrape_success 1 если API сессий ответил при последнем сборе."
@@ -170,10 +201,23 @@ tmp=$(mktemp "$OUT_DIR/.trading.prom.XXXXXX")
   echo "# TYPE trading_session_info gauge"
   echo "# HELP trading_session_age_seconds Возраст живой сессии в секундах."
   echo "# TYPE trading_session_age_seconds gauge"
+  echo "# HELP trading_trader_up_seconds Время работы трейдера (из heartbeat в логе)."
+  echo "# TYPE trading_trader_up_seconds gauge"
+  echo "# HELP trading_trader_ticks_total Тиков трейдера (из heartbeat)."
+  echo "# TYPE trading_trader_ticks_total counter"
+  echo "# HELP trading_trader_orders_total Заявок трейдера (из heartbeat)."
+  echo "# TYPE trading_trader_orders_total counter"
+  echo "# HELP trading_trader_tick_errors_total Ошибок тика трейдера (из heartbeat)."
+  echo "# TYPE trading_trader_tick_errors_total counter"
+  echo "# HELP trading_trader_order_ms_avg Средняя латентность заявки, мс (из heartbeat)."
+  echo "# TYPE trading_trader_order_ms_avg gauge"
+  echo "# HELP trading_trader_order_ms_max Максимальная латентность заявки, мс (из heartbeat)."
+  echo "# TYPE trading_trader_order_ms_max gauge"
 
   container_lines
   running_by_role
   session_lines
+  trader_lines
 } >"$tmp"
 
 chmod 644 "$tmp"

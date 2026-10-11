@@ -18,7 +18,8 @@
 и **promtail** (сбор docker-логов в Loki). Оба слушают только loopback,
 доступны через SSH-туннели — подробности в [server/README.md](server/README.md).
 На trading-сервере дополнительно собирается **статус контейнеров и сессий**
-(`server/trading-status/`, дашборд `Trading / Trading Status`).
+(`server/trading-status/`, дашборд `Trading / Trading Status`), а также
+**метрики трейдеров** (heartbeat из логов: тики, заявки, латентность, ошибки).
 
 ## Быстрый старт
 

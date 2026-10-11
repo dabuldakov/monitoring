@@ -325,7 +325,11 @@ ssh root@134.0.117.59
 ```
 
 Метрики: `trading_container_up`, `trading_container_state_code`,
-`trading_sessions_running`, `trading_session_info`, `trading_session_age_seconds`.
+`trading_sessions_running`, `trading_session_info`, `trading_session_age_seconds`,
+а также метрики трейдеров из heartbeat-логов: `trading_trader_up_seconds`,
+`trading_trader_ticks_total`, `trading_trader_orders_total`,
+`trading_trader_tick_errors_total`, `trading_trader_order_ms_avg`,
+`trading_trader_order_ms_max`.
 Дашборд `Trading / Trading Status`, алерты — группа `trading-status` в
 `prometheus/rules.yml` (критичные контейнеры `required="true"`, опциональные
 трейдеры — warning). Ожидаемые контейнеры задаются в начале `collect.sh`
