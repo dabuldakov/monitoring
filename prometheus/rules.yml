@@ -78,6 +78,36 @@ groups:
           summary: "MinIO: критически мало места ({{ $value | humanizePercentage }})"
           description: "Свободно менее 5% usable-объёма MinIO дольше 5 минут. Загрузки видео/картинок могут начать падать (503 SlowDown)."
 
+  # Диск на node-серверах (включая trading): именно этого алерта не хватало —
+  # диск trading-хоста забивался молча (docker-образы/кэш).
+  - name: node-disk
+    rules:
+      - alert: NodeDiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            / node_filesystem_size_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|ramfs"} < 0.15)
+          and on(instance, mountpoint)
+          node_filesystem_size_bytes{job="node"} > 2e9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }}: мало места на {{ $labels.mountpoint }} ({{ $value | humanizePercentage }})"
+          description: "Свободно {{ $value | humanizePercentage }} дольше 10 минут. Почистить docker: `docker builder prune -af; docker image prune -af` — или расширить диск."
+
+      - alert: NodeDiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            / node_filesystem_size_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|ramfs"} < 0.07)
+          and on(instance, mountpoint)
+          node_filesystem_size_bytes{job="node"} > 2e9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }}: критически мало места на {{ $labels.mountpoint }} ({{ $value | humanizePercentage }})"
+          description: "Свободно менее 7% дольше 5 минут — возможны сбои (деплой, запись журнала). Срочно почистить docker/логи."
+
 # Статус trading-сервера: контейнеры и сессии. Метрики пишет агент
 # server/trading-status/collect.sh через textfile-коллектор node_exporter.
   - name: trading-status
