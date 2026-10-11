@@ -144,3 +144,23 @@ groups:
         annotations:
           summary: "Trading: нет метрик статуса"
           description: "Метрики trading_container_up отсутствуют больше 10 минут. Проверить node_exporter (127.0.0.1:9100) и таймер trading-status-collector."
+
+      # Латентность заявок высокая (из heartbeat трейдера).
+      - alert: TradingTraderOrderLatencyHigh
+        expr: trading_trader_order_ms_avg > 1500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trading: высокая латентность заявок у {{ $labels.run }}"
+          description: "Средняя латентность заявки у трейдера {{ $labels.run }} > 1500 мс дольше 5 минут (сейчас {{ $value }} мс). Проверить сеть/брокера."
+
+      # Растут ошибки тика — трейдер спотыкается на транзиентных сбоях.
+      - alert: TradingTraderTickErrors
+        expr: increase(trading_trader_tick_errors_total[15m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trading: ошибки тика у {{ $labels.run }}"
+          description: "У трейдера {{ $labels.run }} больше 5 ошибок тика за 15 минут — смотреть логи контейнера."
