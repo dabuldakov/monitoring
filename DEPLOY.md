@@ -18,9 +18,13 @@
                apps-tunnel       SSH-туннели к 168.222.194.206
                akm-tunnel        SSH-туннель к 90.188.89.63
                trading-tunnel    SSH-туннель к 134.0.117.59 (127.0.0.1:9104)
+               analize-tunnel    SSH-туннель к 79.174.77.75 (127.0.0.1:9105)
                k6-rw-tunnel      обратный SSH-туннель: k6-метрики в Prometheus
 
 168.222.194.206                  chat, makeup + promtail + node_exporter
+
+79.174.77.75                     analize + node_exporter (бинарник + systemd,
+                                 без Docker, promtail не нужен)
 
 134.0.117.59                     trading (app, collector, postgres, redis, caddy)
                                 + node_exporter, без promtail

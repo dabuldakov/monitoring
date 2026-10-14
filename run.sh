@@ -39,7 +39,7 @@ status() {
   docker compose ps
   echo
   echo "Туннели до node_exporter:"
-  for p in "${AKM_NODE_EXPORTER_PORT:-9100}" "${APPS_NODE_EXPORTER_PORT:-9102}" "${WCM_NODE_EXPORTER_PORT:-9101}" "${TRADING_NODE_EXPORTER_PORT:-9104}"; do
+  for p in "${AKM_NODE_EXPORTER_PORT:-9100}" "${APPS_NODE_EXPORTER_PORT:-9102}" "${WCM_NODE_EXPORTER_PORT:-9101}" "${TRADING_NODE_EXPORTER_PORT:-9104}" "${ANALIZE_NODE_EXPORTER_PORT:-9105}"; do
     if (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; then
       echo "  127.0.0.1:$p  доступен"
     else

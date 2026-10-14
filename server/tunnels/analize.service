@@ -1,0 +1,32 @@
+# SSH-туннель к node_exporter на сервере analize (79.174.77.75).
+#
+# node_exporter там слушает только 127.0.0.1:9100 (server/install-node-exporter-systemd.sh,
+# бинарник + systemd, без Docker), наружу не торчит. Prometheus скрейпит
+# пробрасываемый порт как 127.0.0.1:9105 (job node, instance=Analize
+# в prometheus/prometheus.yml.tmpl).
+#
+# Требуется: публичный ключ машины мониторинга в authorized_keys сервера analize
+#   ssh-keygen -y -f /root/.ssh/id_ed25519   # добавить на 79.174.77.75
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/tunnels/analize.service /etc/systemd/system/analize-tunnel.service
+#   systemctl daemon-reload
+#   systemctl enable --now analize-tunnel
+#
+# Проверка:
+#   systemctl status analize-tunnel
+#   ss -ltnp | grep 9105
+#   curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9105/metrics  # 200
+[Unit]
+Description=SSH-туннель к node_exporter на сервере analize: 127.0.0.1:9105
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9105:127.0.0.1:9100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@79.174.77.75
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

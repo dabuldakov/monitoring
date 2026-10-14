@@ -35,6 +35,14 @@ ssh-keygen -y -f /root/.ssh/id_ed25519
 ./server/install-promtail.sh          # -> логи в Loki через 127.0.0.1:3100
 ```
 
+`install-node-exporter.sh` рассчитан на Docker. Если на сервере Docker нет
+(например, `79.174.77.75`), ставь агент официальным бинарником + systemd:
+
+```bash
+scp server/install-node-exporter-systemd.sh root@<host>:/root/
+ssh root@<host> '/root/install-node-exporter-systemd.sh'   # -> 127.0.0.1:9100
+```
+
 `install-promtail.sh` сам создаёт `/opt/promtail/docker-compose.yaml` и
 поднимает контейнер. Конфиг promtail — один на все серверы, меняется здесь
 (`promtail/promtail.yml`) и раскатывается повторным запуском скрипта.
