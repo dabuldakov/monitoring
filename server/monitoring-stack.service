@@ -1,0 +1,36 @@
+# Сам стек наблюдаемости (Prometheus, Alertmanager, Loki, Grafana, blackbox).
+#
+# Ставится на машине мониторинга. Поднимает стек после ребута через ./run.sh up:
+# рендерит конфиги из .env и делает docker compose up -d. Нужен потому, что
+# одной docker-политики restart: always недостаточно, чтобы гарантировать
+# запуск всего стека (история: после ребута prometheus и alertmanager остались
+# лежать). Тома (история метрик/логов) не трогаются.
+#
+# Установка (на машине мониторинга, от root):
+#   cp server/monitoring-stack.service /etc/systemd/system/monitoring-stack.service
+#   systemctl daemon-reload
+#   systemctl enable --now monitoring-stack
+#
+# Проверка:
+#   systemctl status monitoring-stack
+#   ./run.sh status
+#   curl -sf http://127.0.0.1:9090/-/ready && echo prometheus ok
+#   curl -sf http://127.0.0.1:9093/-/ready && echo alertmanager ok
+[Unit]
+Description=Monitoring stack (Prometheus, Alertmanager, Loki, Grafana, blackbox)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/monitoring
+ExecStart=/opt/monitoring/run.sh up
+ExecReload=/opt/monitoring/run.sh reload
+ExecStop=/usr/bin/docker compose -f /opt/monitoring/docker-compose.yaml stop
+TimeoutStartSec=180
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -11,11 +11,17 @@ name: monitoring
 # SSH-туннелями с этой машины на локальные порты из .env:
 #   ${AKM_NODE_EXPORTER_PORT}  -> akm-сервер        (server/tunnels/akm.service)
 #   ${APPS_NODE_EXPORTER_PORT} -> сервер приложений  (server/tunnels/apps.service)
+#
+# restart: always (а не unless-stopped): после ребута docker восстановил не все
+# контейнеры — prometheus и alertmanager остались лежать, потому что unless-stopped
+# не поднимает контейнер, оставшийся «остановленным». always поднимает их и после
+# ребута, и при падении/SIGHUP. Автозапуск дублирует systemd-юнит
+# server/monitoring-stack.service.
 
 services:
   prometheus:
     image: prom/prometheus:latest
-    restart: unless-stopped
+    restart: always
     network_mode: host
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -31,7 +37,7 @@ services:
 
   alertmanager:
     image: prom/alertmanager:latest
-    restart: unless-stopped
+    restart: always
     network_mode: host
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
@@ -47,7 +53,7 @@ services:
   # по /actuator/health. Слушает только localhost.
   blackbox:
     image: prom/blackbox-exporter:latest
-    restart: unless-stopped
+    restart: always
     network_mode: host
     command:
       - --config.file=/etc/blackbox/blackbox.yml
@@ -61,7 +67,7 @@ services:
   # приложений и шлют сюда). Наружу не торчит: Grafana читает локально.
   loki:
     image: grafana/loki:3.4.2
-    restart: unless-stopped
+    restart: always
     network_mode: host
     user: "0"
     mem_limit: 512m
@@ -72,7 +78,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    restart: unless-stopped
+    restart: always
     network_mode: host
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}

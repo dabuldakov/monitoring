@@ -188,6 +188,18 @@ cd /opt/monitoring
 ./run.sh status
 ```
 
+Затем поставь systemd-юнит, чтобы стек сам поднимался после ребута:
+
+```bash
+cp server/monitoring-stack.service /etc/systemd/system/monitoring-stack.service
+systemctl daemon-reload
+systemctl enable --now monitoring-stack
+```
+
+Юнит при загрузке вызывает `./run.sh up` (рендер конфигов + `docker compose up -d`)
+и держит стек поднятым. В паре с `restart: always` в `docker-compose.yaml` это
+закрывает случай, когда после ребута prometheus и alertmanager оставались лежать.
+
 `./run.sh status` покажет контейнеры и доступность всех портов
 node_exporter. Ожидаемо:
 
