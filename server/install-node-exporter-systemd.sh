@@ -3,8 +3,8 @@
 # Слушает только 127.0.0.1:9100 — наружу не торчит, доступен через SSH-туннель
 # с машины мониторинга (server/tunnels/*.service).
 #
-# Аналог server/install-node-exporter.sh, но для хостов без Docker
-# (например, 79.174.77.75). Ставит /usr/local/bin/node_exporter и юнит
+# Аналог server/install-node-exporter.sh, но для хостов без Docker.
+# Ставит /usr/local/bin/node_exporter и юнит
 # node_exporter.service, запускает и оставляет включённым на автозапуск.
 #
 # Запуск на сервере (от root):
