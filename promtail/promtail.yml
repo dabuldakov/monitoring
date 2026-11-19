@@ -33,10 +33,15 @@ scrape_configs:
       - source_labels: ['container']
         regex: '(promtail|loki|node_exporter|blackbox|loadtest-.*|monitoring-.*|gitlab.*)'
         action: drop
-      # label 'app' для запросов {app="chat"} / {app="makeup"} / {app="wcm"}
+      # label 'app' для запросов {app="chat"} / {app="makeup"} / {app="auth"}
       - source_labels: ['container']
         regex: '(chat|makeup).*'
         target_label: app
+      # auth-service (app/nginx/postgres): отдельный сервис, а не «chat».
+      - source_labels: ['container']
+        regex: 'muzea-auth-service.*'
+        target_label: app
+        replacement: 'auth'
       - source_labels: ['container']
         regex: 'world-country-monitoring.*'
         target_label: app
@@ -59,6 +64,12 @@ scrape_configs:
         target_label: app
         replacement: 'trading'
     pipeline_stages:
+      # Loki отклоняет записи старше retention. После рестартов и для новых
+      # контейнеров promtail дочитывает файл с начала — без этого весь поток
+      # получал 400 и логи сервиса не доезжали вообще.
+      - drop:
+          older_than: 48h
+          drop_counter_reason: too_old
       # JSON-логи приложений (chat/makeup): уровень в отдельный label.
       - match:
           selector: '{app=~"chat|makeup"}'
