@@ -67,4 +67,21 @@ fi
 find "$DEST/postgres" -type f -name '*.dump' -mtime +14 -delete
 find "$DEST/postgres" -type f -name '*.dump' -printf '%f\n' | sort | tail -5
 
+# ---------- Метрика для алерта об устаревшем бэкапе ----------
+# node_exporter на машине мониторинга читает .prom из textfile-коллектора.
+# Если скрипт упал, файл не обновится и сработает MuzeaBackupStale.
+TEXTFILE_DIR="${NODE_EXPORTER_TEXTFILE_DIR:-/var/lib/node-exporter/textfile}"
+mkdir -p "$TEXTFILE_DIR"
+tmp="$TEXTFILE_DIR/.muzea_backup.prom.$$"
+{
+  echo "# HELP muzea_backup_last_success_timestamp_seconds Unix time of last successful muzea backup"
+  echo "# TYPE muzea_backup_last_success_timestamp_seconds gauge"
+  echo "muzea_backup_last_success_timestamp_seconds $(date +%s)"
+  echo "# HELP muzea_backup_minio_bytes Size of the MinIO mirror on disk"
+  echo "# TYPE muzea_backup_minio_bytes gauge"
+  echo "muzea_backup_minio_bytes $(du -sb "$DEST/minio" | cut -f1)"
+} > "$tmp"
+chmod 644 "$tmp"
+mv "$tmp" "$TEXTFILE_DIR/muzea_backup.prom"
+
 echo "==> backup finished"

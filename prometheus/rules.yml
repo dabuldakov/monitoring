@@ -78,6 +78,21 @@ groups:
           summary: "MinIO: критически мало места ({{ $value | humanizePercentage }})"
           description: "Свободно менее 5% usable-объёма MinIO дольше 5 минут. Загрузки видео/картинок могут начать падать (503 SlowDown)."
 
+  # Свежесть бэкапа muzea (Postgres + MinIO). Метрику пишет backup-muzea.sh
+  # через textfile-коллектор node_exporter на машине мониторинга.
+  - name: backup
+    rules:
+      - alert: MuzeaBackupStale
+        expr: |
+          (time() - max(muzea_backup_last_success_timestamp_seconds)) > 172800
+          or absent(muzea_backup_last_success_timestamp_seconds)
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "Бэкап muzea не обновлялся больше 48 часов"
+          description: "Последний успешный бэкап Postgres/MinIO старше 48 часов (или метрики нет). Проверить: systemctl status muzea-backup.timer; journalctl -u muzea-backup.service -n 100; df -h /opt/backups."
+
   # Рантайм приложений (Micrometer → /actuator/prometheus через SSH-туннель).
   # app-метки приходят из static_configs джобов app-makeup/app-chat/app-auth.
   - name: app-runtime
