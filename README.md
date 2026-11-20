@@ -69,6 +69,28 @@ Docker volume'ы: `prometheus_data`, `alertmanager_data`, `loki_data`, `grafana_
 `./run.sh down` их сохраняет; `docker compose down -v` удалит — сносит всю
 историю метрик и логов.
 
+## Бэкапы
+
+`server/backups/` — ежедневный бэкап состояния muzea на машину мониторинга:
+
+- `pg_dump -Fc` каждой БД (makeup/chat/auth) + проверка `pg_restore --list`;
+- `mc mirror` всех bucket'ов MinIO read-only пользователем `backup`;
+- дампы БД хранятся 14 дней, MinIO-зеркало — в одном экземпляре (текущее состояние).
+
+Установка (на машине мониторинга):
+
+```bash
+cp server/backups/muzea-backup.service /etc/systemd/system/
+cp server/backups/muzea-backup.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now muzea-backup.timer
+systemctl start muzea-backup.service   # первый прогон
+```
+
+Требуется `mc` в `/usr/local/bin/mc`, доступ по SSH к серверу приложений
+(тот же ключ, что у `apps-tunnel`) и read-only пользователь MinIO
+(`MINIO_BACKUP_*` в `.env`).
+
 ## Логи
 
 Promtail на каждом сервере приложений шлёт логи в Loki; лейблы:

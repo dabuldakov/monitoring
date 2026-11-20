@@ -20,13 +20,13 @@
 #   ss -ltnp | grep 9102
 #   ssh <apps-host> 'curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3100/ready'  # 200
 [Unit]
-Description=SSH-туннели к серверу приложений: node_exporter 127.0.0.1:9102, MinIO 127.0.0.1:9103, метрики приложений 127.0.0.1:9185-9187 и обратный Loki 127.0.0.1:3100
+Description=SSH-туннели к серверу приложений: node_exporter 127.0.0.1:9102, MinIO 127.0.0.1:9103 и 9000, метрики приложений 127.0.0.1:9185-9187 и обратный Loki 127.0.0.1:3100
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9102:127.0.0.1:9100 -L 127.0.0.1:9103:127.0.0.1:9000 -L 127.0.0.1:9185:127.0.0.1:9185 -L 127.0.0.1:9186:127.0.0.1:9186 -L 127.0.0.1:9187:127.0.0.1:9187 -R 127.0.0.1:3100:127.0.0.1:3100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@168.222.194.206
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9102:127.0.0.1:9100 -L 127.0.0.1:9103:127.0.0.1:9000 -L 127.0.0.1:9000:127.0.0.1:9000 -L 127.0.0.1:9185:127.0.0.1:9185 -L 127.0.0.1:9186:127.0.0.1:9186 -L 127.0.0.1:9187:127.0.0.1:9187 -R 127.0.0.1:3100:127.0.0.1:3100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@168.222.194.206
 Restart=always
 RestartSec=5
 

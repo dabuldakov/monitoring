@@ -1,0 +1,11 @@
+[Unit]
+Description=Бэкап muzea: PostgreSQL (makeup/chat/auth) + MinIO
+After=network-online.target apps-tunnel.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/monitoring/server/backups/backup-muzea.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
