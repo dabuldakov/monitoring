@@ -91,6 +91,24 @@ systemctl start muzea-backup.service   # первый прогон
 (тот же ключ, что у `apps-tunnel`) и read-only пользователь MinIO
 (`MINIO_BACKUP_*` в `.env`).
 
+Пользователь MinIO и политика создаются один раз (в образе `minio/minio`
+есть готовый `mc`):
+
+```bash
+# mc из образа MinIO (dl.min.io может быть недоступен)
+docker create --name mc-tmp minio/minio:latest
+docker cp mc-tmp:/usr/bin/mc /usr/local/bin/mc && chmod +x /usr/local/bin/mc
+docker rm mc-tmp
+
+# на сервере приложений, с root-кредами из shared-minio/.env
+mc admin user add local backup '<secret>'
+mc admin policy create local muzea-backup-readonly server/backups/minio-backup-policy.json
+mc admin policy attach local muzea-backup-readonly --user backup
+```
+
+Встроенной политики `readonly` недостаточно: `mc mirror` делает list
+сравнения и получает Access Denied. Нужны `s3:Get*` и `s3:List*`.
+
 ## Логи
 
 Promtail на каждом сервере приложений шлёт логи в Loki; лейблы:
