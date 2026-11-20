@@ -44,3 +44,14 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/status
       foldersFromFilesStructure: false
+
+  - name: app
+    orgId: 1
+    folder: App
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/app
+      foldersFromFilesStructure: false

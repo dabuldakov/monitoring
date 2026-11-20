@@ -57,6 +57,35 @@ scrape_configs:
           server: ${APPS_SERVER_NAME}
           app: minio
 
+  # Метрики приложений (Micrometer/Actuator). Endpoint /actuator/prometheus
+  # отдаёт внутренний metrics-listener nginx на loopback-порту сервера
+  # приложений; сюда он приходит через SSH-туннель (server/tunnels/apps.service).
+  # Один target на сервис: при нескольких репликах nginx балансирует скрейпы,
+  # для per-replica метрик позже нужен отдельный discovery-агент.
+  - job_name: app-makeup
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["127.0.0.1:${MAKEUP_METRICS_PORT}"]
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: makeup
+
+  - job_name: app-chat
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["127.0.0.1:${CHAT_METRICS_PORT}"]
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: chat
+
+  - job_name: app-auth
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["127.0.0.1:${AUTH_METRICS_PORT}"]
+        labels:
+          server: ${APPS_SERVER_NAME}
+          app: auth
+
   # RTT/потери до целевых серверов через blackbox_exporter (127.0.0.1:9115).
   # server — отображаемое имя хоста, по нему алерты пишут «какой сервер упал».
   - job_name: blackbox-icmp

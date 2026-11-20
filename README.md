@@ -21,6 +21,13 @@
 (`server/trading-status/`, дашборд `Trading / Trading Status`), а также
 **метрики трейдеров** (heartbeat из логов: тики, заявки, латентность, ошибки).
 
+**Метрики приложений.** `makeup`, `chat` и `auth` отдают Micrometer на
+`/actuator/prometheus`. Наружу endpoint не публикуется: nginx каждого сервиса
+слушает отдельный metrics-listener на loopback (`127.0.0.1:9185-9187`), а
+Prometheus скрейпит его через `apps-tunnel`. Дашборд — Grafana →
+`App / App Runtime`. Пока это один target на сервис: при нескольких репликах
+для per-replica метрик понадобится discovery-агент на сервере приложений.
+
 ## Быстрый старт
 
 ```bash
