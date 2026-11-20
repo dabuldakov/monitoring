@@ -49,6 +49,6 @@ done
 
 # Валидация: Prometheus и Alertmanager умеют проверять конфиг.
 docker compose run --rm --no-deps --entrypoint /bin/promtool prometheus \
-  check config /etc/prometheus/prometheus.yml >/dev/null \
+  check config /etc/prometheus/prometheus.local.yml >/dev/null \
   && echo "==> prometheus.yml валиден" \
   || { echo "!! prometheus.yml невалиден" >&2; exit 1; }
