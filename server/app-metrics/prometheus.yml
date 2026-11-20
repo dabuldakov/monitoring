@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Агент живёт на app-хосте и скрейпит реплики по Docker DNS.
+# Один target на контейнер: при --scale app=3 dns_sd вернёт три A-записи.
+# Наружу смотрит только federation endpoint 127.0.0.1:9190 (SSH-туннель).
+scrape_configs:
+  - job_name: app-makeup
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names: ["makeup-app"]
+        type: A
+        port: 8080
+    relabel_configs:
+      - target_label: server
+        replacement: Muzea
+      - target_label: app
+        replacement: makeup
+
+  - job_name: app-chat
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names: ["chat-app"]
+        type: A
+        port: 8080
+    relabel_configs:
+      - target_label: server
+        replacement: Muzea
+      - target_label: app
+        replacement: chat
+
+  - job_name: app-auth
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names: ["auth-app"]
+        type: A
+        port: 8080
+    relabel_configs:
+      - target_label: server
+        replacement: Muzea
+      - target_label: app
+        replacement: auth

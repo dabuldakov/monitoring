@@ -22,11 +22,10 @@
 **метрики трейдеров** (heartbeat из логов: тики, заявки, латентность, ошибки).
 
 **Метрики приложений.** `makeup`, `chat` и `auth` отдают Micrometer на
-`/actuator/prometheus`. Наружу endpoint не публикуется: nginx каждого сервиса
-слушает отдельный metrics-listener на loopback (`127.0.0.1:9185-9187`), а
-Prometheus скрейпит его через `apps-tunnel`. Дашборд — Grafana →
-`App / App Runtime`. Пока это один target на сервис: при нескольких репликах
-для per-replica метрик понадобится discovery-агент на сервере приложений.
+`/actuator/prometheus`. На каждом app-хосте работает Prometheus-агент
+(`server/app-metrics`): он находит все реплики через Docker DNS и отдаёт
+центральному Prometheus через `/federate` по SSH-туннелю. В Grafana и алертах
+видна каждая реплика отдельно (`instance`), дашборд — `App / App Runtime`.
 
 ## Быстрый старт
 

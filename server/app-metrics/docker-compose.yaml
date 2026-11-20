@@ -1,0 +1,39 @@
+name: app-metrics
+
+# Prometheus-агент на сервере приложений: находит все реплики makeup/chat/auth
+# через Docker DNS и отдаёт их центральному Prometheus через /federate.
+# Порт 9190 публикуется только на loopback — доступ идёт по SSH-туннелю.
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=1h
+      - --web.listen-address=0.0.0.0:9190
+    ports:
+      - "127.0.0.1:9190:9190"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - app_metrics_data:/prometheus
+    mem_limit: 256m
+    networks:
+      - makeup-net
+      - chat-net
+      - auth-net
+
+networks:
+  # Имена сетей compose-проектов на сервере приложений.
+  makeup-net:
+    external: true
+    name: makeup-backend_makeup-network
+  chat-net:
+    external: true
+    name: chat-backend_chat-network
+  auth-net:
+    external: true
+    name: muzea-auth-service_auth-network
+
+volumes:
+  app_metrics_data:

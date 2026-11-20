@@ -98,6 +98,15 @@ groups:
   - name: app-runtime
     rules:
       # Пропал скрейп: упал metrics-listener, туннель или само приложение.
+      - alert: AppMetricsAgentDown
+        expr: up{job="app-federate"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.server }}: агент метрик приложений недоступен"
+          description: "Prometheus не может скрейпить federation-агент на сервере приложений (127.0.0.1:9190) больше 2 минут. Проверить контейнер app-metrics и apps-tunnel."
+
       - alert: AppMetricsDown
         expr: up{job=~"app-(makeup|chat|auth)"} == 0
         for: 2m

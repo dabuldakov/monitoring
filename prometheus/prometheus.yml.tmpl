@@ -57,34 +57,20 @@ scrape_configs:
           server: ${APPS_SERVER_NAME}
           app: minio
 
-  # Метрики приложений (Micrometer/Actuator). Endpoint /actuator/prometheus
-  # отдаёт внутренний metrics-listener nginx на loopback-порту сервера
-  # приложений; сюда он приходит через SSH-туннель (server/tunnels/apps.service).
-  # Один target на сервис: при нескольких репликах nginx балансирует скрейпы,
-  # для per-replica метрик позже нужен отдельный discovery-агент.
-  - job_name: app-makeup
-    metrics_path: /actuator/prometheus
+  # Per-replica метрики приложений. На сервере приложений работает
+  # Prometheus-агент (server/app-metrics): он находит реплики через Docker DNS
+  # и отдаёт их сюда через federation. honor_labels сохраняет job/app/instance
+  # каждого контейнера, поэтому дашборды и алерты видят каждую реплику отдельно.
+  - job_name: app-federate
+    metrics_path: /federate
+    params:
+      'match[]':
+        - '{job=~"app-(makeup|chat|auth)"}'
     static_configs:
-      - targets: ["127.0.0.1:${MAKEUP_METRICS_PORT}"]
+      - targets: ["127.0.0.1:${APP_METRICS_PORT}"]
         labels:
           server: ${APPS_SERVER_NAME}
-          app: makeup
-
-  - job_name: app-chat
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ["127.0.0.1:${CHAT_METRICS_PORT}"]
-        labels:
-          server: ${APPS_SERVER_NAME}
-          app: chat
-
-  - job_name: app-auth
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ["127.0.0.1:${AUTH_METRICS_PORT}"]
-        labels:
-          server: ${APPS_SERVER_NAME}
-          app: auth
+    honor_labels: true
 
   # RTT/потери до целевых серверов через blackbox_exporter (127.0.0.1:9115).
   # server — отображаемое имя хоста, по нему алерты пишут «какой сервер упал».
