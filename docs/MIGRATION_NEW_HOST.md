@@ -66,11 +66,43 @@ app-metrics, node_exporter, promtail) с текущего сервера на н
 
 План:
 
-1. **T-48h**: снизить TTL `api/chat/auth/s3` до **300**. У `chat` старый TTL
-   ~23.6 ч, у `api` ~11.6 ч — ждать не меньше суток.
-2. **T-24h**: убедиться, что `dig` отдаёт новый TTL.
-3. **Cutover**: сменить A на `176.120.27.77`.
-4. После стабилизации (1–2 недели) вернуть TTL 3600.
+1. **T-48h**: в reg.ru выставить TTL зоны (SOA) и A-записей
+   `api/chat/auth/s3` в **1h (3600)** — это минимум панели reg.ru (300 недоступно).
+   «Minimum» (негативный TTL) оставить 3h, Refresh/Retry/Expire не трогать.
+2. У `chat` старый TTL ~23.6 ч, у `api` ~11.6 ч: после снижения до 1h нужно
+   подождать **не меньше 24 ч**, пока старые кэши истекут.
+3. **Cutover**: сменить A на `176.120.27.77`. Из-за минимума 1h полное
+   переключение занимает до часа — на это время старый nginx работает
+   временным прокси на новый хост (см. 4.1), чтобы не было split-brain.
+4. После стабилизации (1–2 недели) TTL можно вернуть на 1d.
+
+### 4.1. Старый nginx как временный прокси на cutover
+
+Из-за TTL 1h часть клиентов ещё час будет ходить на старый IP. Чтобы они не
+попали в остановленный бэкенд и не было двух независимых БД:
+
+1. Остановить приложения/БД/MinIO на старом хосте после финального копира.
+2. Сохранить конфиги: `cp -a /etc/nginx /root/nginx-pre-cutover`.
+3. В vhost'ах `api/chat/auth` заменить `proxy_pass http://127.0.0.1:8085`
+   (8086/8087) на `proxy_pass https://176.120.27.77;` и добавить:
+   ```nginx
+   proxy_ssl_server_name on;
+   proxy_ssl_name $host;
+   proxy_set_header Host $host;
+   proxy_set_header X-Real-IP $remote_addr;
+   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   proxy_set_header X-Forwarded-Proto $scheme;
+   ```
+   В `s3` vhost — `proxy_pass https://176.120.27.77;` с теми же `Host`/SNI,
+   `proxy_request_buffering off`, `client_max_body_size 0`.
+4. `nginx -t && systemctl reload nginx` на старом хосте.
+5. Переключить DNS на новый IP. Клиенты со старым DNS идут
+   старый nginx → новый хост; клиенты с новым DNS — напрямую на новый.
+6. Через 1–2 часа (после истечения TTL) остановить nginx на старом хосте.
+
+Проверить, что приложение доверяет `X-Forwarded-For`
+(`APP_TRUST_PROXY_HEADERS`), иначе rate limit по IP будет видеть старый прокси.
+Для presigned URL `Host` должен остаться `s3.muzea.su` — иначе SigV4 не сойдётся.
 
 ## 5. Подготовка нового хоста
 
