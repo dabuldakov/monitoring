@@ -104,18 +104,20 @@ scrape_configs:
     params:
       module: [tcp_connect]
     static_configs:
+      # Порты 8085–8087 слушают только loopback на сервере приложений,
+      # поэтому снаружи проверяем публичный TLS-порт доменов.
       - targets:
-          - "${APPS_HOST}:${MAKEUP_PORT}"   # makeup
+          - "api-muzea.su:443"              # makeup
         labels:
           server: ${APPS_SERVER_NAME}
           app: makeup
       - targets:
-          - "${APPS_HOST}:${CHAT_PORT}"     # chat
+          - "chat-muzea.su:443"             # chat
         labels:
           server: ${APPS_SERVER_NAME}
           app: chat
       - targets:
-          - "${APPS_HOST}:${AUTH_PORT}"     # auth (auth-service)
+          - "auth.muzea.su:443"             # auth (auth-service)
         labels:
           server: ${APPS_SERVER_NAME}
           app: auth
@@ -140,17 +142,17 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-          - "http://${APPS_HOST}:${MAKEUP_PORT}/actuator/health"   # makeup
+          - "https://api-muzea.su/actuator/health"   # makeup
         labels:
           server: ${APPS_SERVER_NAME}
           app: makeup
       - targets:
-          - "http://${APPS_HOST}:${CHAT_PORT}/actuator/health"     # chat
+          - "https://chat-muzea.su/actuator/health"  # chat
         labels:
           server: ${APPS_SERVER_NAME}
           app: chat
       - targets:
-          - "http://${APPS_HOST}:${AUTH_PORT}/actuator/health"     # auth (auth-service)
+          - "https://auth.muzea.su/actuator/health"  # auth (auth-service)
         labels:
           server: ${APPS_SERVER_NAME}
           app: auth

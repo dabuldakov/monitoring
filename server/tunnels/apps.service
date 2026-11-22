@@ -26,7 +26,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9102:127.0.0.1:9100 -L 127.0.0.1:9103:127.0.0.1:9000 -L 127.0.0.1:9000:127.0.0.1:9000 -L 127.0.0.1:9190:127.0.0.1:9190 -R 127.0.0.1:3100:127.0.0.1:3100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new root@168.222.194.206
+ExecStart=/usr/bin/ssh -N -L 127.0.0.1:9102:127.0.0.1:9100 -L 127.0.0.1:9103:127.0.0.1:9000 -L 127.0.0.1:9000:127.0.0.1:9000 -L 127.0.0.1:9190:127.0.0.1:9190 -R 127.0.0.1:3100:127.0.0.1:3100 -p 22 -i /root/.ssh/id_ed25519 -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new administrator@176.120.27.77
 Restart=always
 RestartSec=5
 
