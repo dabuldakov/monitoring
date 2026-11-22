@@ -56,7 +56,7 @@
             "type": "prometheus",
             "uid": "ds_prometheus"
           },
-          "expr": "sum(up{job=\"app-makeup\"})",
+          "expr": "sum(up{job=\"app-makeup\"}) or vector(0)",
           "instant": true,
           "range": false
         }
@@ -125,7 +125,7 @@
             "type": "prometheus",
             "uid": "ds_prometheus"
           },
-          "expr": "sum(up{job=\"app-chat\"})",
+          "expr": "sum(up{job=\"app-chat\"}) or vector(0)",
           "instant": true,
           "range": false
         }
@@ -194,7 +194,7 @@
             "type": "prometheus",
             "uid": "ds_prometheus"
           },
-          "expr": "sum(up{job=\"app-auth\"})",
+          "expr": "sum(up{job=\"app-auth\"}) or vector(0)",
           "instant": true,
           "range": false
         }
