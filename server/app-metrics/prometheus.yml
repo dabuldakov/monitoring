@@ -9,7 +9,7 @@ scrape_configs:
   - job_name: app-makeup
     metrics_path: /actuator/prometheus
     dns_sd_configs:
-      - names: ["makeup-app"]
+      - names: ["makeup-app", "makeup-app-2"]
         type: A
         port: 8080
     relabel_configs:
@@ -21,7 +21,7 @@ scrape_configs:
   - job_name: app-chat
     metrics_path: /actuator/prometheus
     dns_sd_configs:
-      - names: ["chat-app"]
+      - names: ["chat-app", "chat-app-2"]
         type: A
         port: 8080
     relabel_configs:
@@ -33,7 +33,7 @@ scrape_configs:
   - job_name: app-auth
     metrics_path: /actuator/prometheus
     dns_sd_configs:
-      - names: ["auth-app"]
+      - names: ["auth-app", "auth-app-2"]
         type: A
         port: 8080
     relabel_configs:

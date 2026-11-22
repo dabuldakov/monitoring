@@ -3,9 +3,9 @@
 Prometheus-агент на сервере приложений. Запускается рядом с `makeup`/`chat`/`auth`
 и сам находит все реплики через Docker DNS:
 
-- `makeup-app` → все контейнеры сервиса `app` проекта makeup;
-- `chat-app` → chat;
-- `auth-app` → auth (уникальный alias в auth-compose).
+- `makeup-app`, `makeup-app-2` → два инстанса makeup;
+- `chat-app`, `chat-app-2` → два инстанса chat;
+- `auth-app`, `auth-app-2` → два инстанса auth.
 
 Центральный Prometheus скрейпит `127.0.0.1:9190/federate` через `apps-tunnel`
 и сохраняет `job`/`app`/`instance` каждого контейнера (`honor_labels: true`).
