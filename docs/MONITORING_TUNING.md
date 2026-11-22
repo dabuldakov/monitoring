@@ -16,7 +16,7 @@
 | Что | Было | Стало |
 |---|---|---|
 | Swap | нет | 2 ГБ `/swapfile`, `vm.swappiness=10` |
-| Journal | 1.5 ГБ | 158 МБ (`journalctl --vacuum-size=200M`) |
+| Journal | 1.5 ГБ | 158 МБ, `SystemMaxUse=200M` |
 | Prometheus retention | 30d | 7d |
 | Prometheus scrape/eval | 15s | 30s |
 | Prometheus query limits | по умолчанию | timeout 30s, concurrency 4, samples 10M |
@@ -34,7 +34,15 @@
 - доступно RAM: **394 МБ → 1.08 ГБ**;
 - swap: 2 ГБ, занято ~0.6 ГБ;
 - PSI CPU: **74% → 10%**; memory: **56% → 1.9%**; IO: **83% → 4.2%**;
-- запрос Prometheus `up`: **3 мс**, максимальный scrape — 0.48 с.
+- запрос Prometheus `up`: **1–3 мс**, максимальный scrape — 0.48 с;
+- Grafana `/api/health`: **54 мс**, WCM front — 18 мс.
+
+## WCM-лимиты
+
+Лимиты WCM применены и на работающих контейнерах (`docker update`), и в
+`/root/world-country-monitoring-*/docker-compose.yml`. Эти файлы не
+закоммичены в их репозитории: если деплой WCM делает `git reset --hard`,
+лимиты сбросятся — изменения нужно закоммитить отдельно.
 
 ## Важно
 
