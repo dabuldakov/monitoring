@@ -23,10 +23,16 @@ services:
     image: prom/prometheus:latest
     restart: always
     network_mode: host
+    mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 400MiB
     command:
       - --config.file=/etc/prometheus/prometheus.local.yml
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}
+      - --query.timeout=30s
+      - --query.max-concurrency=4
+      - --query.max-samples=10000000
       - --web.enable-remote-write-receiver
       - --enable-feature=native-histograms
       - --web.listen-address=127.0.0.1:9090
@@ -41,6 +47,7 @@ services:
     image: prom/alertmanager:latest
     restart: always
     network_mode: host
+    mem_limit: 96m
     command:
       - --config.file=/etc/alertmanager/alertmanager.local.yml
       - --web.listen-address=127.0.0.1:9093
@@ -58,6 +65,7 @@ services:
     image: prom/blackbox-exporter:latest
     restart: always
     network_mode: host
+    mem_limit: 64m
     command:
       - --config.file=/etc/blackbox/blackbox.yml
       - --web.listen-address=127.0.0.1:9115
@@ -83,7 +91,11 @@ services:
     image: grafana/grafana:latest
     restart: always
     network_mode: host
+    mem_limit: 512m
     environment:
+      GOMEMLIMIT: 400MiB
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"

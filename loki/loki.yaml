@@ -28,8 +28,8 @@ schema_config:
         period: 24h
 
 limits_config:
-  retention_period: 336h      # 14 дней
-  max_query_lookback: 336h
+  retention_period: 168h      # 7 дней
+  max_query_lookback: 168h
   max_entries_limit_per_query: 10000
   ingestion_burst_size_mb: 32
   ingestion_rate_mb: 16
