@@ -583,3 +583,19 @@ scp root@168.222.194.206:/root/promtail.yml ~/
   логируются не чаще раза в минуту.
 - Задеплоено: `muzea/chat:68e8890`, `muzea/makeup:ba01a2a`; 6/6 app-таргетов up.
   Лимитер после ошибки Redis 10 секунд работает fail-open без обращения к Redis.
+
+## 20. Delta-sync и консистентность MinIO (2026-11-23)
+
+- **Chat delta-sync**: `/api/messages/{uuid}/updated/{ts}` теперь отдаёт
+  soft-deleted сообщения с `isDeleted=true`; клиенты уже умеют убирать их
+  из кеша. `/api/sync` добавляет `deletedMessages` и `hasMore`, отдаёт самые
+  старые сообщения и курсор `min(max)` по чатам — при >500 новых сообщений
+  ничего не теряется.
+- **Makeup MinIO outbox**: удаление видео/новостей ставит задачу в
+  `storage_cleanup` внутри транзакции БД. Планировщик удаляет объект после
+  коммита; ошибка MinIO повторяется с backoff (lease 5 мин, batch 20,
+  `FOR UPDATE SKIP LOCKED`). Flyway `V10` применена.
+- **Makeup ffmpeg**: обработка медиа больше не держит транзакцию БД на всё
+  время ffmpeg; статус задачи и обновление видео — короткие транзакции.
+- Задеплоено: `muzea/chat:085529c`, `muzea/makeup:73219f4`; 6/6 app-таргетов up.
+- Осталось: presigned-upload orphan sweeper и retention старых партиций.
