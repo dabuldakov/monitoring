@@ -526,3 +526,39 @@ scp root@168.222.194.206:/root/promtail.yml ~/
 - [ ] Мобильные smoke-тесты: вход, чат, вложения, пуш, пиннинг сертификата.
 - [ ] Через 1–2 недели остановить старый хост; расширить диск мониторинга
       (свободно ~3.6 ГБ при зеркале MinIO 2.0 ГБ).
+
+## 18. Edge-nginx hardening (2026-11-23)
+
+Закрыт P0 по доступности: большое тело запроса больше не буферизуется на диск
+до проверки авторизации.
+
+Изменено на хосте `176.120.27.77` (копии — `server/nginx-host/`):
+
+- `api-muzea.su`: лимит по умолчанию `1m`; `= /api/news` — `25m`;
+  `= /api/videos/upload` — `2000m` с `proxy_request_buffering off`;
+  `/api/videos/stream/` — без буферизации и с таймаутом 3600s.
+- `auth.muzea.su`: `client_max_body_size 1m`.
+- `chat-muzea.su`: по умолчанию `25m`; `= /api/attachments/upload` — `220m`
+  с отключённой буферизацией и таймаутами 600s.
+- Во всех трёх конфигах `X-Forwarded-For` перезаписывается `$remote_addr`,
+  а не дополняется клиентским заголовком. Это закрывает обход IP rate-limit
+  подменой `X-Forwarded-For` в auth-service.
+
+Внутренний nginx makeup (`makeup/deploy/nginx.conf`) получил те же лимиты
+по location; проверено на `127.0.0.1:8085` и через публичный HTTPS:
+
+| Запрос | Результат |
+|---|---|
+| `POST /api/news` 30 МБ | 413 |
+| `POST /api/videos/1/like` 2 МБ | 413 |
+| `POST /api/videos/upload` 2 МБ | 403 (дошло до приложения) |
+| `POST /auth/otp/request` 2 МБ | 413 |
+| `POST /api/attachments/upload` 2 МБ | 401 (дошло до приложения) |
+
+Деплой сервисов выполнен вручную (GitHub Actions заблокированы биллингом):
+
+- `muzea/auth:c7113ba`; `muzea/chat:455f47b`; `muzea/makeup:dde7dd8`.
+- Тесты и coverage-гейты прошли: auth (unit + integration), chat
+  (unit + integration, line 90.2%), makeup (unit + integration).
+- Prometheus `app-*`: 6/6 up.
+
