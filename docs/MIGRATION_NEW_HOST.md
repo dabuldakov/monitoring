@@ -574,7 +574,11 @@ scp root@168.222.194.206:/root/promtail.yml ~/
   fail-open. `CacheErrorHandler` не даёт сбою кеша превратиться в 500;
   Redis исключён из healthcheck, короткие timeout/connect-timeout.
   Проверено: 310 запросов с одним XFF → 300×401 + 10×429, с другим XFF → 401.
+  Анонимный default — 600/мин на IP, write-эндпоинты строже; ошибки кеша
+  логируются не чаще раза в минуту.
 - **Makeup**: лимиты на legacy upload (5/мин), presign/finalize (20/мин),
   новости/жалобы (10/мин), лайки (60/мин). Redis-кеш также с fallback.
   Проверено: 310 cache-busting запросов с одним XFF → 300×200 + 10×429.
-- Задеплоено: `muzea/chat:99d6e9c`, `muzea/makeup:3476e30`; 6/6 app-таргетов up.
+  Анонимный default — 600/мин на IP; write-эндпоинты строже; ошибки кеша
+  логируются не чаще раза в минуту.
+- Задеплоено: `muzea/chat:56ab21b`, `muzea/makeup:01e336e`; 6/6 app-таргетов up.
