@@ -562,3 +562,19 @@ scp root@168.222.194.206:/root/promtail.yml ~/
   (unit + integration, line 90.2%), makeup (unit + integration).
 - Prometheus `app-*`: 6/6 up.
 
+
+## 19. Rate limiting и отказоустойчивость Redis (2026-11-23)
+
+- **Edge-nginx**: `limit_req` per-IP — auth 10 r/s (burst 30), api 50 r/s
+  (burst 100), chat 100 r/s (burst 200), загрузки 3 r/s (burst 5–10).
+  Превышение → 429. Проверено: 40 запросов к auth дают 19×429, 120 к api —
+  43×429, одиночные запросы после паузы снова 200.
+- **Chat**: Redis fixed-window лимитер per-user на отправку сообщений,
+  вложения, поиск, sync, presence и телеметрию. При недоступности Redis —
+  fail-open. `CacheErrorHandler` не даёт сбою кеша превратиться в 500;
+  Redis исключён из healthcheck, короткие timeout/connect-timeout.
+  Проверено: 310 запросов с одним XFF → 300×401 + 10×429, с другим XFF → 401.
+- **Makeup**: лимиты на legacy upload (5/мин), presign/finalize (20/мин),
+  новости/жалобы (10/мин), лайки (60/мин). Redis-кеш также с fallback.
+  Проверено: 310 cache-busting запросов с одним XFF → 300×200 + 10×429.
+- Задеплоено: `muzea/chat:99d6e9c`, `muzea/makeup:3476e30`; 6/6 app-таргетов up.
