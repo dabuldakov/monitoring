@@ -581,4 +581,5 @@ scp root@168.222.194.206:/root/promtail.yml ~/
   Проверено: 310 cache-busting запросов с одним XFF → 300×200 + 10×429.
   Анонимный default — 600/мин на IP; write-эндпоинты строже; ошибки кеша
   логируются не чаще раза в минуту.
-- Задеплоено: `muzea/chat:56ab21b`, `muzea/makeup:01e336e`; 6/6 app-таргетов up.
+- Задеплоено: `muzea/chat:68e8890`, `muzea/makeup:ba01a2a`; 6/6 app-таргетов up.
+  Лимитер после ошибки Redis 10 секунд работает fail-open без обращения к Redis.
