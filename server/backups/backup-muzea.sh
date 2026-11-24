@@ -18,6 +18,8 @@ set +a
 
 DEST="${BACKUP_DIR:-/opt/backups/muzea}"
 APPS_SSH_PORT="${APPS_SSH_PORT:-22}"
+RESTIC_REPOSITORY="${RESTIC_REPOSITORY:-sftp:muzea-backup:/home/dmitry_buldakov/muzea-restic}"
+RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILE:-/opt/monitoring/.restic-password}"
 
 SSH_BASE=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=30
   -p "$APPS_SSH_PORT" -i "$APPS_SSH_KEY" "$APPS_SSH_TARGET")
@@ -67,6 +69,23 @@ fi
 find "$DEST/postgres" -type f -name '*.dump' -mtime +14 -delete
 find "$DEST/postgres" -type f -name '*.dump' -printf '%f\n' | sort | tail -5
 
+# ---------- Offsite: restic через SFTP на отдельный хост ----------
+if command -v restic >/dev/null 2>&1 && [ -f "$RESTIC_PASSWORD_FILE" ]; then
+  export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
+  echo "--> restic backup -> $RESTIC_REPOSITORY"
+  restic backup "$DEST/postgres" "$DEST/minio" \
+    --tag muzea --host "$(hostname -f)" --compression max
+  restic forget --keep-daily 30 --keep-weekly 12 --keep-monthly 12 --prune
+  # Раз в неделю читаем часть данных обратно: проверка, что репозиторий цел.
+  if [ "$(date -u +%u)" = "7" ]; then
+    restic check --read-data-subset=10%
+  fi
+  OFF_SITE_OK=1
+else
+  echo "!! restic или $RESTIC_PASSWORD_FILE не настроены — offsite пропущен" >&2
+  OFF_SITE_OK=0
+fi
+
 # ---------- Метрика для алерта об устаревшем бэкапе ----------
 # node_exporter на машине мониторинга читает .prom из textfile-коллектора.
 # Если скрипт упал, файл не обновится и сработает MuzeaBackupStale.
@@ -80,6 +99,11 @@ tmp="$TEXTFILE_DIR/.muzea_backup.prom.$$"
   echo "# HELP muzea_backup_minio_bytes Size of the MinIO mirror on disk"
   echo "# TYPE muzea_backup_minio_bytes gauge"
   echo "muzea_backup_minio_bytes $(du -sb "$DEST/minio" | cut -f1)"
+  if [ "${OFF_SITE_OK:-0}" = "1" ]; then
+    echo "# HELP muzea_backup_offsite_last_success_timestamp_seconds Unix time of last successful restic backup"
+    echo "# TYPE muzea_backup_offsite_last_success_timestamp_seconds gauge"
+    echo "muzea_backup_offsite_last_success_timestamp_seconds $(date +%s)"
+  fi
 } > "$tmp"
 chmod 644 "$tmp"
 mv "$tmp" "$TEXTFILE_DIR/muzea_backup.prom"
