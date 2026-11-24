@@ -66,7 +66,7 @@ WAL-архивирование через `pgBackRest`/`WAL-G` в отдельн
 
 | Параметр | Значение |
 |---|---|
-| Образ | `muzea/postgres:17-pgbackrest` |
+| Образ | `muzea/postgres:17-pgbackrest` (Dockerfile: `deploy/postgres-pgbackrest/` в каждом backend-репозитории) |
 | Репозиторий | `sftp://dmitry_buldakov@90.188.89.63:2222/home/dmitry_buldakov/muzea-pgbackrest` |
 | Станзы | `auth`, `chat`, `makeup` |
 | WAL | archive_mode=on, archive_timeout=300 |
