@@ -57,6 +57,8 @@ PITR пока нет.
 
 ## Бэкапы
 
+### Логические бэкапы + offsite
+
 Ежедневно systemd-таймер на monitoring-хосте запускает
 `server/backups/backup-muzea.sh`:
 
@@ -83,15 +85,35 @@ app DB/MinIO ──pg_dump/mc mirror──> /opt/backups/muzea (monitoring)
 неизменяемые снимки, поэтому удалённые объекты остаются в старых снимках до
 истечения retention.
 
+### PITR PostgreSQL
+
+Для каждой БД (auth, chat, makeup) включён pgBackRest:
+
+- образ `muzea/postgres:17-pgbackrest` (postgres:17 + pgBackRest);
+- `archive_mode=on`, `wal_level=replica`, `archive_timeout=300`;
+- WAL непрерывно уезжает в SFTP-репозиторий на backup-хосте;
+- ежедневно в 02:30 UTC systemd-таймер на app-хосте делает full backup;
+- retention: 7 full + 7 архивов WAL;
+- репозиторий шифруется `aes-256-cbc`;
+- конфиги: `/home/administrator/muzea/pgbackrest/<service>/`, пароль — в защищённой копии вне сервера.
+
+Схема:
+
+```
+PostgreSQL ──WAL archive_command──> pgBackRest SFTP ──> 90.188.89.63
+    │
+    └──daily full backup (02:30 UTC)
+```
+
 ### Текущие RPO/RTO
 
 | Что | RPO | RTO |
 |---|---|---|
-| PostgreSQL | до 24 часов (ночной дамп) | 15–60 минут вручную |
+| PostgreSQL (PITR) | до 5 минут (archive_timeout), при активности — секунды | 15–60 минут |
 | MinIO | до 24 часов | зависит от объёма |
 | Offsite-копия | до 24 часов | + время скачивания |
 
-PITR пока не включён: восстановление только на момент снимка.
+PITR проверен restore drill для auth: восстановлена БД и сверено количество пользователей.
 
 ### Восстановление
 

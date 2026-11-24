@@ -78,7 +78,8 @@ Docker volume'ы: `prometheus_data`, `alertmanager_data`, `loki_data`, `grafana_
 - `mc mirror` всех bucket'ов MinIO read-only пользователем `backup`;
 - дампы БД хранятся 14 дней, MinIO-зеркало — в одном экземпляре (текущее состояние);
 - шифрованный offsite-снимок restic на отдельном хосте: 30 daily / 12 weekly / 12 monthly;
-- еженедельная read-data проверка и алерты `MuzeaBackupStale` / `MuzeaBackupOffsiteStale`.
+- еженедельная read-data проверка и алерты `MuzeaBackupStale` / `MuzeaBackupOffsiteStale`;
+- PITR PostgreSQL через pgBackRest: WAL непрерывно на offsite, full backup ежедневно, RPO до 5 минут.
 
 Подробно: [BACKUP_OFFSITE.md](docs/BACKUP_OFFSITE.md).
 

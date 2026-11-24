@@ -58,3 +58,42 @@ app-хосте; MinIO-объекты возвращать через `mc mirror`
 Это offsite-копия **логических** дампов и объектов MinIO. PITR
 (восстановление PostgreSQL на секунду) пока не включён. Следующий шаг —
 WAL-архивирование через `pgBackRest`/`WAL-G` в отдельный S3-репозиторий.
+
+
+## PITR PostgreSQL (pgBackRest)
+
+Дополнительно к логическим дампам работает pgBackRest:
+
+| Параметр | Значение |
+|---|---|
+| Образ | `muzea/postgres:17-pgbackrest` |
+| Репозиторий | `sftp://dmitry_buldakov@90.188.89.63:2222/home/dmitry_buldakov/muzea-pgbackrest` |
+| Станзы | `auth`, `chat`, `makeup` |
+| WAL | archive_mode=on, archive_timeout=300 |
+| Full backup | ежедневно 02:30 UTC, systemd `pgbackrest-backup.timer` на app-хосте |
+| Retention | 7 full, 7 архивов WAL |
+| Шифрование | aes-256-cbc |
+| Конфиги | `/home/administrator/muzea/pgbackrest/<service>/` |
+
+Проверка:
+
+```bash
+docker exec -u postgres muzea-auth-service-postgres-1 \
+  pgbackrest --stanza=auth info
+```
+
+Восстановление на точку времени:
+
+```bash
+# остановить приложение/БД, подготовить чистый PGDATA
+docker run --rm -v /path/to/empty-pgdata:/var/lib/postgresql/data \
+  -v /home/administrator/muzea/pgbackrest/auth:/etc/pgbackrest:ro \
+  --entrypoint bash muzea/postgres:17-pgbackrest -lc '
+    chown -R postgres:postgres /var/lib/postgresql
+    su postgres -c "pgbackrest --stanza=auth --type=time \
+      --target=\"2026-11-24 14:00:00+00\" --target-action=promote restore"
+  '
+```
+
+Затем запустить PostgreSQL с `archive_mode=off` (или в отдельном контейнере) и
+проверить данные. WAL-архив и full backup хранятся на offsite-хосте.
