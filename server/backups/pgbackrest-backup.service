@@ -1,0 +1,8 @@
+[Unit]
+Description=Muzea pgBackRest full backups
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pgbackrest-backup.sh
+User=root

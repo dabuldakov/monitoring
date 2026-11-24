@@ -82,6 +82,17 @@ groups:
   # через textfile-коллектор node_exporter на машине мониторинга.
   - name: backup
     rules:
+      - alert: MuzeaPitrStale
+        expr: |
+          (time() - max(muzea_pitr_last_success_timestamp_seconds)) > 172800
+          or absent(muzea_pitr_last_success_timestamp_seconds)
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "PITR-бэкап muzea не обновлялся больше 48 часов"
+          description: "pgBackRest full backup старше 48 часов или метрики нет. Проверить: systemctl status pgbackrest-backup.timer; journalctl -u pgbackrest-backup.service -n 100; docker exec -u postgres <db> pgbackrest --stanza=<name> info."
+
       - alert: MuzeaBackupOffsiteStale
         expr: |
           (time() - max(muzea_backup_offsite_last_success_timestamp_seconds)) > 172800
