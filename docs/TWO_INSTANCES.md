@@ -73,6 +73,12 @@ SKIP_BUILD=1 APP_IMAGE=muzea/makeup:rollback ./scripts/rolling-deploy.sh
 `/opt/app-metrics/prometheus.yml` скрейпит оба алиаса каждого приложения
 (`*-app` и `*-app-2`). Центральный Prometheus получает их через federation.
 
+## Бэкапы и данные
+
+Оба инстанса приложения используют общие PostgreSQL, Redis и MinIO на той же
+ноде. Бэкапы и offsite-копия описаны в [ARCHITECTURE.md](ARCHITECTURE.md) и
+[BACKUP_OFFSITE.md](BACKUP_OFFSITE.md).
+
 ## Ограничения
 
 - Это масштабирование и деплой без простоя, но **не** защита от падения ноды:

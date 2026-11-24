@@ -4,6 +4,8 @@
 Живёт на отдельной машине и не связан с нагрузочными прогонами — они живут
 в отдельном репозитории `loadtest` и пишут метрики сюда через remote-write.
 
+Полная картина — [архитектура, инстансы и бэкапы](docs/ARCHITECTURE.md).
+
 ## Что внутри
 
 | Компонент | Роль | Наружу |
@@ -74,7 +76,11 @@ Docker volume'ы: `prometheus_data`, `alertmanager_data`, `loki_data`, `grafana_
 
 - `pg_dump -Fc` каждой БД (makeup/chat/auth) + проверка `pg_restore --list`;
 - `mc mirror` всех bucket'ов MinIO read-only пользователем `backup`;
-- дампы БД хранятся 14 дней, MinIO-зеркало — в одном экземпляре (текущее состояние).
+- дампы БД хранятся 14 дней, MinIO-зеркало — в одном экземпляре (текущее состояние);
+- шифрованный offsite-снимок restic на отдельном хосте: 30 daily / 12 weekly / 12 monthly;
+- еженедельная read-data проверка и алерты `MuzeaBackupStale` / `MuzeaBackupOffsiteStale`.
+
+Подробно: [BACKUP_OFFSITE.md](docs/BACKUP_OFFSITE.md).
 
 Установка (на машине мониторинга):
 
