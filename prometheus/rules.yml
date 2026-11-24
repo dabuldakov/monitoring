@@ -82,6 +82,17 @@ groups:
   # через textfile-коллектор node_exporter на машине мониторинга.
   - name: backup
     rules:
+      - alert: MuzeaBackupOffsiteStale
+        expr: |
+          (time() - max(muzea_backup_offsite_last_success_timestamp_seconds)) > 172800
+          or absent(muzea_backup_offsite_last_success_timestamp_seconds)
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "Offsite-бэкап muzea не обновлялся больше 48 часов"
+          description: "restic-снимок на 90.188.89.63 старше 48 часов (или метрики нет). Проверить: journalctl -u muzea-backup.service -n 100; ssh muzea-backup; restic snapshots."
+
       - alert: MuzeaBackupStale
         expr: |
           (time() - max(muzea_backup_last_success_timestamp_seconds)) > 172800
